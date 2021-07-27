@@ -32,9 +32,6 @@ The review was conducted over the course of **{{review_period}}** from **{{date_
 
 During the first week, we ...
 
-### Week 2
-
-The second week was ...
 
 ## Scope
 
@@ -43,10 +40,16 @@ The initial review focused on the [{{project_name}}]({{source_repository}}) repo
 <!-- We focused on manually reviewing the codebase, searching for security issues such as, but not limited to, re-entrancy problems, transaction ordering, block timestamp dependency, exception handling, call stack depth limitation, integer overflow/underflow, self-destructible contracts, unsecured balance, use of origin, costly gas patterns, architectural problems, code readability. -->
 
 **Includes:**
-- GoodContract.sol
 
-**Excludes:**
-- BadContract.sol
+- code/contracts/core/OpynPerpVault.sol
+- code/contracts/example-actions/ShortOToken.sol
+- code/contracts/example-actions/ShortPutWithETH.sol
+- code/contracts/utils/AuctionUtils.sol
+- code/contracts/utils/CompoundUtils.sol
+- code/contracts/utils/GammaUtils.sol
+- code/contracts/utils/ZeroXUtils.sol
+- code/contracts/utils/RollOverBase.sol
+- code/contracts/utils/AirswapUtils.sol
 
 ## Recommendations
 
