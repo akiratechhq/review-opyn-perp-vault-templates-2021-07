@@ -1,11 +1,12 @@
 {
-    "project_name": "Project name",
     "client_name": "Client name",
-    "review_period": "2 weeks",
-    "date_interval": "October 15 to November 15, 2020",
-    "person_days": "5",
-    "template": "./Readme.md.mustache",
-    "date": "July 2021",
     "commit_hash": "1248e6606feb3279a94104df6c6dfcb8d46271f4",
-    "source_repository": "https://github.com/opynfinance/perp-vault-templates"
+    "date": "July 2021",
+    "date_interval": "October 15 to November 15, 2020",
+    "issues": [],
+    "person_days": "5",
+    "project_name": "Project name",
+    "review_period": "2 weeks",
+    "source_repository": "https://github.com/opynfinance/perp-vault-templates",
+    "template": "./Readme.md.mustache"
 }

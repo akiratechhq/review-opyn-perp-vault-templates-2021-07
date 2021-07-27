@@ -216,13 +216,48 @@ Another way to improve contract size is by breaking them into multiple smaller c
 
 Sūrya is a utility tool for smart contract systems. It provides a number of visual outputs and information about the structure of smart contracts. It also supports querying the function call graph in multiple ways to aid in the manual inspection and control flow analysis of contracts.
 
-<!-- **Contracts Description Table**
+**Contracts Description Table**
 
-```text
-surya mdreport report.md Contract.sol
-```
+|  Contract  |         Type        |       Bases      |                  |                 |
+|:----------:|:-------------------:|:----------------:|:----------------:|:---------------:|
+|     └      |  **Function Name**  |  **Visibility**  |  **Mutability**  |  **Modifiers**  |
+||||||
+| **OpynPerpVault** | Implementation | ERC20Upgradeable, ReentrancyGuardUpgradeable, OwnableUpgradeable |||
+| └ | init | Public ❗️ | 🛑  | initializer |
+| └ | setCap | External ❗️ | 🛑  | onlyOwner |
+| └ | totalAsset | External ❗️ |   |NO❗️ |
+| └ | getSharesByDepositAmount | External ❗️ |   |NO❗️ |
+| └ | getWithdrawAmountByShares | External ❗️ |   |NO❗️ |
+| └ | deposit | External ❗️ | 🛑  | onlyUnlocked |
+| └ | registerDeposit | External ❗️ | 🛑  | onlyLocked |
+| └ | claimShares | External ❗️ | 🛑  |NO❗️ |
+| └ | withdraw | External ❗️ | 🛑  | nonReentrant onlyUnlocked |
+| └ | registerWithdraw | External ❗️ | 🛑  | onlyLocked |
+| └ | withdrawFromQueue | External ❗️ | 🛑  | nonReentrant notEmergency |
+| └ | closePositions | Public ❗️ | 🛑  | onlyLocked unlockState |
+| └ | rollOver | External ❗️ | 🛑  | onlyOwner onlyUnlocked lockState |
+| └ | emergencyPause | External ❗️ | 🛑  | onlyOwner |
+| └ | resumeFromPause | External ❗️ | 🛑  | onlyOwner |
+| └ | _netAssetsControlled | Internal 🔒 |   | |
+| └ | _totalAssets | Internal 🔒 |   | |
+| └ | _effectiveBalance | Internal 🔒 |   | |
+| └ | _totalDebt | Internal 🔒 |   | |
+| └ | _deposit | Internal 🔒 | 🛑  | |
+| └ | _closeAndWithdraw | Internal 🔒 | 🛑  | |
+| └ | _distribute | Internal 🔒 | 🛑  | nonReentrant |
+| └ | _withdrawFromQueue | Internal 🔒 | 🛑  | |
+| └ | _regularWithdraw | Internal 🔒 | 🛑  | |
+| └ | _getSharesByDepositAmount | Internal 🔒 |   | |
+| └ | _getWithdrawAmountByShares | Internal 🔒 |   | |
+| └ | _payRoundFee | Internal 🔒 | 🛑  | |
+| └ | _snapshotShareAndAsset | Internal 🔒 | 🛑  | |
 
--->
+**Legend**
+
+|  Symbol  |  Meaning  |
+|:--------:|-----------|
+|    🛑    | Function can modify state |
+|    💵    | Function is payable |
 
 #### Graphs
 
@@ -248,21 +283,427 @@ Use Solidity Visual Auditor
 
 #### Describe
 
-<!-- ```text
-$ npx surya describe ./Contract.sol
-``` -->
+```text
+$ npx surya describe ./contracts/core/OpynPerpVault.sol
+ +  OpynPerpVault (ERC20Upgradeable, ReentrancyGuardUpgradeable, OwnableUpgradeable)
+    - [Pub] init #
+       - modifiers: initializer
+    - [Ext] setCap #
+       - modifiers: onlyOwner
+    - [Ext] totalAsset
+    - [Ext] getSharesByDepositAmount
+    - [Ext] getWithdrawAmountByShares
+    - [Ext] deposit #
+       - modifiers: onlyUnlocked
+    - [Ext] registerDeposit #
+       - modifiers: onlyLocked
+    - [Ext] claimShares #
+    - [Ext] withdraw #
+       - modifiers: nonReentrant,onlyUnlocked
+    - [Ext] registerWithdraw #
+       - modifiers: onlyLocked
+    - [Ext] withdrawFromQueue #
+       - modifiers: nonReentrant,notEmergency
+    - [Pub] closePositions #
+       - modifiers: onlyLocked,unlockState
+    - [Ext] rollOver #
+       - modifiers: onlyOwner,onlyUnlocked,lockState
+    - [Ext] emergencyPause #
+       - modifiers: onlyOwner
+    - [Ext] resumeFromPause #
+       - modifiers: onlyOwner
+    - [Int] _netAssetsControlled
+    - [Int] _totalAssets
+    - [Int] _effectiveBalance
+    - [Int] _totalDebt
+    - [Int] _deposit #
+    - [Int] _closeAndWithdraw #
+    - [Int] _distribute #
+       - modifiers: nonReentrant
+    - [Int] _withdrawFromQueue #
+    - [Int] _regularWithdraw #
+    - [Int] _getSharesByDepositAmount
+    - [Int] _getWithdrawAmountByShares
+    - [Int] _payRoundFee #
+    - [Int] _snapshotShareAndAsset #
+
+
+ ($) = payable function
+ # = non-constant function
+
+```
 
 ### Coverage
 
-<!-- ```text
+```text
 $ npm run coverage
-``` -->
+
+> @opynfinance/perp-vault-templates@1.0.0 coverage
+> npx hardhat coverage --testfiles 'test/unit-tests/**/*.ts'
+
+
+Version
+=======
+> solidity-coverage: v0.7.16
+
+Instrumenting for coverage...
+=============================
+
+> core/OpynPerpVault.sol
+> example-actions/ShortOToken.sol
+> example-actions/ShortPutWithETH.sol
+> libraries/SwapTypes.sol
+> proxy/CTokenProxy.sol
+> proxy/ETHProxy.sol
+> utils/AirswapUtils.sol
+> utils/AuctionUtils.sol
+> utils/CompoundUtils.sol
+> utils/GammaUtils.sol
+> utils/RollOverBase.sol
+> utils/ZeroXUtils.sol
+
+Coverage skipped for:
+=====================
+
+> interfaces/IAction.sol
+> interfaces/ICEth.sol
+> interfaces/IChainlink.sol
+> interfaces/IComptroller.sol
+> interfaces/IController.sol
+> interfaces/ICToken.sol
+> interfaces/IEasyAuction.sol
+> interfaces/IERC20Detailed.sol
+> interfaces/IOracle.sol
+> interfaces/IOToken.sol
+> interfaces/IOtokenFactory.sol
+> interfaces/IPool.sol
+> interfaces/IPriceFeed.sol
+> interfaces/ISwap.sol
+> interfaces/ITreasury.sol
+> interfaces/IVault.sol
+> interfaces/IWETH.sol
+> interfaces/IWhitelist.sol
+> interfaces/IZeroXV4.sol
+> mocks/MockAction.sol
+> mocks/MockCompoundContracts.sol
+> mocks/MockController.sol
+> mocks/MockEasyAuction.sol
+> mocks/MockERC20.sol
+> mocks/MockOpynOracle.sol
+> mocks/MockOracle.sol
+> mocks/MockOToken.sol
+> mocks/MockPool.sol
+> mocks/MockPricer.sol
+> mocks/MockSwap.sol
+> mocks/MockWETH.sol
+> mocks/MockWhitelist.sol
+> mocks/MockZeroXV4.sol
+> tests/CompoundUtilTester.sol
+
+Compilation:
+============
+
+Compiling 63 files with 0.7.6
+contracts/mocks/MockEasyAuction.sol:81:7: Warning: Unnamed return variable can remain unassigned. Add an explicit return with value to all non-reverting code paths or name the variable.
+      uint64 /*userId*/
+      ^----^
+
+@openzeppelin/contracts-upgradeable/drafts/ERC20PermitUpgradeable.sol:41:43: Warning: Unused function parameter. Remove or comment out the variable name to silence this warning.
+    function __ERC20Permit_init_unchained(string memory name) internal initializer {
+                                          ^----------------^
+
+contracts/utils/RollOverBase.sol:134:31: Warning: Unused function parameter. Remove or comment out the variable name to silence this warning.
+  function _customOTokenCheck(address _nextOToken) internal view virtual {c_0xb65bf4 ...
+                              ^-----------------^
+
+contracts/mocks/MockController.sol:75:5: Warning: Unused function parameter. Remove or comment out the variable name to silence this warning.
+    address _otoken
+    ^-------------^
+
+contracts/mocks/MockEasyAuction.sol:44:57: Warning: Unused function parameter. Remove or comment out the variable name to silence this warning.
+  function registerUser(address user) external returns (uint64 userId) {
+                                                        ^-----------^
+
+contracts/mocks/MockAction.sol:33:3: Warning: Function state mutability can be restricted to view
+  function closePosition() external override {
+  ^ (Relevant source part starts here and spans across multiple lines).
+
+contracts/mocks/MockController.sol:74:3: Warning: Function state mutability can be restricted to pure
+  function isSettlementAllowed(
+  ^ (Relevant source part starts here and spans across multiple lines).
+
+contracts/core/OpynPerpVault.sol:14:1: Warning: Contract code size exceeds 24576 bytes (a limit introduced in Spurious Dragon). This contract may not be deployable on mainnet. Consider enabling the optimizer (with a low "runs" value!), turning off revert strings, or using libraries.
+contract OpynPerpVault is ERC20Upgradeable, ReentrancyGuardUpgradeable, OwnableUpgradeable {
+^ (Relevant source part starts here and spans across multiple lines).
+
+contracts/example-actions/ShortOToken.sol:28:1: Warning: Contract code size exceeds 24576 bytes (a limit introduced in Spurious Dragon). This contract may not be deployable on mainnet. Consider enabling the optimizer (with a low "runs" value!), turning off revert strings, or using libraries.
+contract ShortOToken is IAction, OwnableUpgradeable, AuctionUtils, AirswapUtils, RollOverBase, GammaUtils {
+^ (Relevant source part starts here and spans across multiple lines).
+
+Generating typings for: 66 artifacts in dir: typechain for target: ethers-v5
+Successfully generated 113 typings!
+Compilation finished successfully
+
+Network Info
+============
+> HardhatEVM: v2.2.1
+> network:    hardhat
+
+No need to generate any newer typings.
+
+
+  ShortAction
+    deployment test
+      ✓ deploy (466ms)
+      ✓ should deploy with type 1 vault (340ms)
+    idle phase
+      ✓ should revert if calling mint + sell in idle phase
+      ✓ should not be able to token with invalid strike price
+      ✓ should be able to commit next token
+      ✓ should revert if the vault is trying to rollover before min commit period is spent
+    activating the action
+      ✓ should revert if the vault is trying to rollover from non-vault address
+      ✓ should be able to roll over the position
+      ✓ should get currentValue as total amount in gamma as
+      ✓ should not be able to commit next token
+      ✓ should revert if the vault is trying to rollover
+      short with AirSwap
+        ✓ should not be able to mint and sell if less than min premium
+        ✓ should be able to mint and sell in this phase (59ms)
+        ✓ should revert when trying to fill wrong order (44ms)
+      short by starting an EasyAuction
+        ✓ should be able to mint and start an auction phase (57ms)
+        ✓ should start another auction with otoken left in the contract
+        ✓ can short by participate in a "buy otoken auction" (77ms)
+    close position
+      ✓ should revert if the vault is trying to close from non-vault address
+      ✓ should be able to close the position (43ms)
+      ✓ should revert if calling mint in idle phase
+
+  Short Put with ETH Action
+    deployment
+      ✓ deploy short put action example  (105ms)
+    idle phase
+      ✓ should revert if calling mint + sell in idle phase
+      ✓ should be able to commit next token
+      ✓ should revert if the vault is trying to rollover before min commit period is spent
+    activating the action
+      ✓ should revert if the vault is trying to rollover from non-vault address
+      ✓ should be able to roll over the position
+      ✓ should execute the trade with borrowed eth (50ms)
+      ✓ should not be able to commit next token
+      ✓ should revert if the vault is trying to rollover
+    close position
+      ✓ should revert if the vault is trying to close from non-vault address
+      ✓ should be able to close the position (63ms)
+
+  OpynPerpVault Tests
+    init
+      ✓ should revert when trying to init with duplicated actions (52ms)
+      ✓ should init the contract successfully (44ms)
+    Round 0, vault unlocked
+      ✓ unlocked state checks
+      ✓ should be able to deposit ETH and WETH (134ms)
+      ✓ should be able to withdraw eth (145ms)
+      ✓ should revert when depositing more than the cap (52ms)
+      ✓ should revert when trying to register a deposit
+      ✓ should revert when trying to register a queue withdraw
+      ✓ should revert when calling closePosition
+      ✓ should revert if rollover is called with total percentage > 100 (41ms)
+      ✓ should revert if rollover is called with total percentage < 100
+      ✓ should revert if rollover is called with invalid percentage array
+      ✓ should rollover to the next round (56ms)
+    Round 0, vault Locked
+      ✓ locked state checks
+      ✓ should revert when trying to call rollover again
+      ✓ should revert when trying to withdraw
+      ✓ should revert when trying to deposit
+      ✓ should be able to register a withdraw (133ms)
+      ✓ should revert when scheduling a deposit more than the cap
+      ✓ should be able to increase cap
+      ✓ should be able to schedule a deposit with ETH (84ms)
+      ✓ should be able to schedule a deposit with WETH (81ms)
+      ✓ should revert if trying to get withdraw from queue now
+      ✓ should revert if trying to get claim shares now
+      ✓ should revert if calling resumeFrom pause when vault is normal
+      ✓ should be able to set vault to emergency state (49ms)
+      ✓ should be able to close position (105ms)
+    Round 1: vault Unlocked
+      ✓ unlocked state checks
+      ✓ should revert if calling closePositions again
+      ✓ should have correct reserved for withdraw
+      ✓ should allow anyone can trigger claim shares (38ms)
+      ✓ should allow queue withdraw weth (49ms)
+      ✓ queue withdraw and normal withdraw should act the same now (54ms)
+      ✓ should allow normal deposit (55ms)
+      ✓ should be able to rollover again (53ms)
+    Round 1: vault Locked
+      ✓ should be able to call withdrawQueue
+      ✓ should be able to close a non-profitable round (69ms)
+      ✓ should be able to withdraw full amount if the round is not profitable
+
+  CompoundUtils
+    tester contract with WETH in it
+      ✓ deploy tester and supply it with some WETH (46ms)
+      ✓ can supply WETH
+      ✓ can borrow USDC
+      ✓ can repay USDC
+      ✓ can redeem WETH
+    tester contract with USDC in it
+      ✓ deploy another tester and supply it with some USDC (45ms)
+      ✓ can supply USDC
+      ✓ can borrow WETH
+      ✓ can repay WETH
+      ✓ can redeem USDC
+
+
+  79 passing (5s)
+
+----------------------|----------|----------|----------|----------|----------------|
+File                  |  % Stmts | % Branch |  % Funcs |  % Lines |Uncovered Lines |
+----------------------|----------|----------|----------|----------|----------------|
+ core/                |      100 |    90.63 |      100 |      100 |                |
+  OpynPerpVault.sol   |      100 |    90.63 |      100 |      100 |                |
+ example-actions/     |    92.31 |    68.42 |    95.24 |    92.47 |                |
+  ShortOToken.sol     |    94.23 |    71.43 |      100 |    94.34 |    238,249,281 |
+  ShortPutWithETH.sol |    89.74 |       60 |     87.5 |       90 |117,118,142,206 |
+ libraries/           |      100 |      100 |      100 |      100 |                |
+  SwapTypes.sol       |      100 |      100 |      100 |      100 |                |
+ proxy/               |    41.67 |       50 |       50 |    43.24 |                |
+  CTokenProxy.sol     |        0 |      100 |        0 |        0 |... 72,74,76,77 |
+  ETHProxy.sol        |      100 |       50 |      100 |      100 |                |
+ utils/               |    91.21 |       70 |    86.67 |     91.3 |                |
+  AirswapUtils.sol    |      100 |      100 |      100 |      100 |                |
+  AuctionUtils.sol    |      100 |       75 |      100 |      100 |                |
+  CompoundUtils.sol   |      100 |       50 |      100 |      100 |                |
+  GammaUtils.sol      |    82.35 |      100 |       80 |    82.35 |    102,104,114 |
+  RollOverBase.sol    |      100 |       90 |      100 |      100 |                |
+  ZeroXUtils.sol      |        0 |      100 |        0 |        0 | 17,25,26,34,35 |
+----------------------|----------|----------|----------|----------|----------------|
+All files             |    89.57 |       75 |    90.22 |    89.74 |                |
+----------------------|----------|----------|----------|----------|----------------|
+
+> Istanbul reports written to ./coverage/ and ./coverage.json
+```
 
 ### Tests
 
-<!-- ```text
-$ npx buidler test
-``` -->
+```text
+$ npm run test
+
+> @opynfinance/perp-vault-templates@1.0.0 test
+> FORK=false hardhat test --network hardhat ./test/unit-tests/**/*.ts
+
+No need to generate any newer typings.
+
+
+  ShortAction
+    deployment test
+      ✓ deploy (228ms)
+      ✓ should deploy with type 1 vault (111ms)
+    idle phase
+      ✓ should revert if calling mint + sell in idle phase
+      ✓ should not be able to token with invalid strike price
+      ✓ should be able to commit next token
+      ✓ should revert if the vault is trying to rollover before min commit period is spent
+    activating the action
+      ✓ should revert if the vault is trying to rollover from non-vault address
+      ✓ should be able to roll over the position
+      ✓ should get currentValue as total amount in gamma as
+      ✓ should not be able to commit next token
+      ✓ should revert if the vault is trying to rollover
+      short with AirSwap
+        ✓ should not be able to mint and sell if less than min premium
+        ✓ should be able to mint and sell in this phase (43ms)
+        ✓ should revert when trying to fill wrong order
+      short by starting an EasyAuction
+        ✓ should be able to mint and start an auction phase (56ms)
+        ✓ should start another auction with otoken left in the contract
+        ✓ can short by participate in a "buy otoken auction" (66ms)
+    close position
+      ✓ should revert if the vault is trying to close from non-vault address
+      ✓ should be able to close the position
+      ✓ should revert if calling mint in idle phase
+
+  Short Put with ETH Action
+    deployment
+      ✓ deploy short put action example  (85ms)
+    idle phase
+      ✓ should revert if calling mint + sell in idle phase
+      ✓ should be able to commit next token
+      ✓ should revert if the vault is trying to rollover before min commit period is spent
+    activating the action
+      ✓ should revert if the vault is trying to rollover from non-vault address
+      ✓ should be able to roll over the position
+      ✓ should execute the trade with borrowed eth (40ms)
+      ✓ should not be able to commit next token
+      ✓ should revert if the vault is trying to rollover
+    close position
+      ✓ should revert if the vault is trying to close from non-vault address
+      ✓ should be able to close the position (43ms)
+
+  OpynPerpVault Tests
+    init
+      ✓ should revert when trying to init with duplicated actions
+      ✓ should init the contract successfully
+    Round 0, vault unlocked
+      ✓ unlocked state checks
+      ✓ should be able to deposit ETH and WETH (96ms)
+      ✓ should be able to withdraw eth (104ms)
+      ✓ should revert when depositing more than the cap (40ms)
+      ✓ should revert when trying to register a deposit
+      ✓ should revert when trying to register a queue withdraw
+      ✓ should revert when calling closePosition
+      ✓ should revert if rollover is called with total percentage > 100
+      ✓ should revert if rollover is called with total percentage < 100
+      ✓ should revert if rollover is called with invalid percentage array
+      ✓ should rollover to the next round (52ms)
+    Round 0, vault Locked
+      ✓ locked state checks
+      ✓ should revert when trying to call rollover again
+      ✓ should revert when trying to withdraw
+      ✓ should revert when trying to deposit
+      ✓ should be able to register a withdraw (77ms)
+      ✓ should revert when scheduling a deposit more than the cap
+      ✓ should be able to increase cap
+      ✓ should be able to schedule a deposit with ETH (60ms)
+      ✓ should be able to schedule a deposit with WETH (66ms)
+      ✓ should revert if trying to get withdraw from queue now
+      ✓ should revert if trying to get claim shares now
+      ✓ should revert if calling resumeFrom pause when vault is normal
+      ✓ should be able to set vault to emergency state (41ms)
+      ✓ should be able to close position (83ms)
+    Round 1: vault Unlocked
+      ✓ unlocked state checks
+      ✓ should revert if calling closePositions again
+      ✓ should have correct reserved for withdraw
+      ✓ should allow anyone can trigger claim shares
+      ✓ should allow queue withdraw weth
+      ✓ queue withdraw and normal withdraw should act the same now (42ms)
+      ✓ should allow normal deposit (40ms)
+      ✓ should be able to rollover again (46ms)
+    Round 1: vault Locked
+      ✓ should be able to call withdrawQueue
+      ✓ should be able to close a non-profitable round (60ms)
+      ✓ should be able to withdraw full amount if the round is not profitable
+
+  CompoundUtils
+    tester contract with WETH in it
+      ✓ deploy tester and supply it with some WETH (45ms)
+      ✓ can supply WETH
+      ✓ can borrow USDC
+      ✓ can repay USDC
+      ✓ can redeem WETH
+    tester contract with USDC in it
+      ✓ deploy another tester and supply it with some USDC (40ms)
+      ✓ can supply USDC
+      ✓ can borrow WETH
+      ✓ can repay WETH
+      ✓ can redeem USDC
+
+
+  79 passing (5s)
+```
 
 ## License
 
