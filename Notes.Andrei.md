@@ -7,16 +7,16 @@ OpynPerpVault
   [x] modifier unlockState
   [x] modifier notEmergency
   [] init
-      [] why uses ERC20Upgradeable ?
-      [] NB: there's no whitelisting of assets - from a trust model this should be 
-      [] why isn't WETH address hardcoded?
+      [] why uses ERC20Upgradeable ? - ask slack
+      [] NB: there's no whitelisting of assets
+      [] why isn't WETH address hardcoded? - ask slack
       [] _tokenName and _tokenSymbol, being fully user/admin controlled means one
       can create vaults with same symbol/name. What problems would this cause?
-      [] why check of duplicated actions?
+      [] why check of duplicated actions? - ask slack (Dani)
   [x] setCap
-  [] totalAsset
-  [] getSharesByDepositAmount
-  [] getWithdrawAmountByShares
+  [x] totalAsset
+  [x] getSharesByDepositAmount
+  [x] getWithdrawAmountByShares
   [] deposit
   [] registerDeposit
   [] claimShares
