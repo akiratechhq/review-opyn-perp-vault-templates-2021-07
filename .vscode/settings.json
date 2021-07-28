@@ -2,6 +2,7 @@
   "solidity.packageDefaultDependenciesContractsDirectory": "",
   "solidity.packageDefaultDependenciesDirectory": "code/node_modules",
   "cSpell.words": [
+    "iweth",
     "otoken"
   ]
 }

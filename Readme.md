@@ -50,10 +50,14 @@
  - [Issues Summary](#issues-summary)
  - [Executive summary](#executive-summary)
      - [Week 1](#week-1)
-     - [Week 2](#week-2)
  - [Scope](#scope)
  - [Recommendations](#recommendations)
  - [Issues](#issues)
+     - [claimShares should send tokens only if there something to transfer](#claimshares-should-send-tokens-only-if-there-something-to-transfer)
+     - [Depositing should allow up to or equal to the cap](#depositing-should-allow-up-to-or-equal-to-the-cap)
+     - [Cache the length of actions when looping over them](#cache-the-length-of-actions-when-looping-over-them)
+     - [Improve gas costs by reducing the use of state variables when possible](#improve-gas-costs-by-reducing-the-use-of-state-variables-when-possible)
+     - [OpynPerpVault.onlyLocked() documentation update](#opynperpvaultonlylocked-documentation-update)
  - [Artifacts](#artifacts)
      - [Surya](#surya)
      - [Coverage](#coverage)
@@ -78,8 +82,8 @@
 | SEVERITY       |    OPEN    |    CLOSED    |
 |----------------|:----------:|:------------:|
 |  Informational  |  0  |  0  |
-|  Minor  |  0  |  0  |
-|  Medium  |  0  |  0  |
+|  Minor  |  3  |  0  |
+|  Medium  |  2  |  0  |
 |  Major  |  0  |  0  |
 
 ## Executive summary
@@ -92,9 +96,6 @@ The review was conducted over the course of **2 weeks** from **October 15 to Nov
 
 During the first week, we ...
 
-### Week 2
-
-The second week was ...
 
 ## Scope
 
@@ -103,10 +104,16 @@ The initial review focused on the [Project name](https://github.com/opynfinance/
 <!-- We focused on manually reviewing the codebase, searching for security issues such as, but not limited to, re-entrancy problems, transaction ordering, block timestamp dependency, exception handling, call stack depth limitation, integer overflow/underflow, self-destructible contracts, unsecured balance, use of origin, costly gas patterns, architectural problems, code readability. -->
 
 **Includes:**
-- GoodContract.sol
 
-**Excludes:**
-- BadContract.sol
+- code/contracts/core/OpynPerpVault.sol
+- code/contracts/example-actions/ShortOToken.sol
+- code/contracts/example-actions/ShortPutWithETH.sol
+- code/contracts/utils/AuctionUtils.sol
+- code/contracts/utils/CompoundUtils.sol
+- code/contracts/utils/GammaUtils.sol
+- code/contracts/utils/ZeroXUtils.sol
+- code/contracts/utils/RollOverBase.sol
+- code/contracts/utils/AirswapUtils.sol
 
 ## Recommendations
 
@@ -258,6 +265,148 @@ Another way to improve contract size is by breaking them into multiple smaller c
 ## Issues
 
 
+### [`claimShares` should send tokens only if there something to transfer](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/issues/5)
+![Issue status: Open](https://img.shields.io/static/v1?label=Status&message=Open&color=5856D6&style=flat-square) ![Medium](https://img.shields.io/static/v1?label=Severity&message=Medium&color=FF9500&style=flat-square)
+
+**Description**
+
+A user can call `registerDeposit` when the vault is locked to add their own funds for the next investment round.
+
+After enough time passes and the round is closed, by calling `closePositions`, the user can come back to the contract to retrieve their locked funds, along with the realized yields.
+
+In order to do this, they need to call `claimShares`.
+
+The method calculates how many tokens they should have received, in case they were to join when the vault was unlocked, and transfers those tokens to the depositor.
+
+The calculated value can be zero, either in case the depositor never added tokens, or the depositor already claimed their tokens. However, the transfer happens either way, for 0 tokens or for a positive value of tokens.
+
+
+[code/contracts/core/OpynPerpVault.sol#L268-L271](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/518e4f6d174cae6ee75e316ad56789aaeb695069/code/contracts/core/OpynPerpVault.sol#L268-L271)
+```solidity
+    uint256 equivalentShares = amountDeposited.mul(roundTotalShare[_round]).div(roundTotalAsset[_round]);
+
+    // transfer shares from vault to user
+    _transfer(address(this), _depositor, equivalentShares);
+```
+
+**Recommendation**
+
+It might help users (from a UX point of view) and the contract to only send tokens when there are tokens to send. Consider transferring only if there is a positive amount to be sent.
+
+This will reduce the number of events the contract emits, and the user knows before committing the transaction if they will receive tokens or not.
+
+---
+
+
+### [Depositing should allow up to or equal to the cap](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/issues/4)
+![Issue status: Open](https://img.shields.io/static/v1?label=Status&message=Open&color=5856D6&style=flat-square) ![Medium](https://img.shields.io/static/v1?label=Severity&message=Medium&color=FF9500&style=flat-square)
+
+**Description**
+
+A user can deposit funds in the vault by calling `deposit()` or `registerDeposit()`.
+
+When they are called, the total amount of locked funds are checked to be up to the specified limit, called the `cap`.
+
+
+[code/contracts/core/OpynPerpVault.sol#L406](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/518e4f6d174cae6ee75e316ad56789aaeb695069/code/contracts/core/OpynPerpVault.sol#L406)
+```solidity
+    require(totalWithDepositedAmount < cap, "Cap exceeded");
+```
+
+
+[code/contracts/core/OpynPerpVault.sol#L248](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/518e4f6d174cae6ee75e316ad56789aaeb695069/code/contracts/core/OpynPerpVault.sol#L248)
+```solidity
+    require(totalWithDepositedAmount < cap, "Cap exceeded");
+```
+
+The check makes sure the amount of funds is strictly less than the limit. This will force the last user joining the vault to send an awkward amount of funds (similar to `99999999`). Allowing the total amount of funds to equal will make the user experience better, and also the total reported amount of funds displayed will be easier to the eye.
+
+**Recommendation**
+
+Change the `require` to accept the sum of deposited amounts to also be equal to the cap.
+
+
+---
+
+
+### [Cache the length of actions when looping over them](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/issues/3)
+![Issue status: Open](https://img.shields.io/static/v1?label=Status&message=Open&color=5856D6&style=flat-square) ![Minor](https://img.shields.io/static/v1?label=Severity&message=Minor&color=FFCC00&style=flat-square)
+
+**Description**
+
+When the total reported amount of assets is estimated by the actions, the storage variable `actions.length` is used. This value does not change over time (in this loop) and can be cached in a local variable, instead of retrieving the value from the storage.
+
+
+[code/contracts/core/OpynPerpVault.sol#L393-L395](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/518e4f6d174cae6ee75e316ad56789aaeb695069/code/contracts/core/OpynPerpVault.sol#L393-L395)
+```solidity
+    for (uint256 i = 0; i < actions.length; i++) {
+      debt = debt.add(IAction(actions[i]).currentValue());
+    }
+```
+
+**Recommendation**
+
+Cache the length locally and use the local variable in the loop.
+
+
+
+---
+
+
+### [Improve gas costs by reducing the use of state variables when possible](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/issues/2)
+![Issue status: Open](https://img.shields.io/static/v1?label=Status&message=Open&color=5856D6&style=flat-square) ![Minor](https://img.shields.io/static/v1?label=Severity&message=Minor&color=FFCC00&style=flat-square)
+
+**Description**
+
+The owner can call `setCap` to set a new limit for the accepted funds.
+
+After the cap was updated, an event is emitted.
+
+
+[code/contracts/core/OpynPerpVault.sol#L200](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/518e4f6d174cae6ee75e316ad56789aaeb695069/code/contracts/core/OpynPerpVault.sol#L200)
+```solidity
+    emit CapUpdated(cap);
+```
+
+When the event is emitted, the storage variable is used. This forces the an expensive `SLOAD` operation.
+
+**Recommendation**
+
+Use the argument received in the method when emitting the event instead of the storage variable.
+
+
+---
+
+
+### [OpynPerpVault.onlyLocked() documentation update](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/issues/1)
+![Issue status: Open](https://img.shields.io/static/v1?label=Status&message=Open&color=5856D6&style=flat-square) ![Minor](https://img.shields.io/static/v1?label=Severity&message=Minor&color=FFCC00&style=flat-square)
+
+**Description**
+
+The `LockState` modifier updates the `state` contract variable to `VaultState.Locked`:
+
+
+[code/contracts/core/OpynPerpVault.sol#L116-L120](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/d94fcb2e2173008272604705a9fc618710349462/code/contracts/core/OpynPerpVault.sol#L116-L120)
+```solidity
+  /**
+   * @dev can only be executed in the unlocked state. Sets the state to 'Locked'
+   */
+  modifier lockState {
+    state = VaultState.Locked;
+```
+
+The issue is that the documentation above is confusing.
+
+**Recommendation**
+
+Reword the documentation text to read (_should_ instead of _can_):
+
+> should only be executed in the unlocked state
+
+
+---
+
+
 ## Artifacts
 
 ### Surya
@@ -308,6 +457,16 @@ Sūrya is a utility tool for smart contract systems. It provides a number of vis
 |    💵    | Function is payable |
 
 #### Graphs
+
+***OpynPerpVault***
+
+##### Call graph
+
+![OpynPerpVault Graph](./static/graphs/OpynPerpVault_graph.png)
+
+##### Inheritance
+
+![OpynPerpVault Inheritance](./static/graphs/OpynPerpVault_inheritance.png)
 
 <!-- ***Contract***
 
