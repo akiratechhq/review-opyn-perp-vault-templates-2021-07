@@ -52,9 +52,16 @@
      - [Week 1](#week-1)
  - [Scope](#scope)
  - [Recommendations](#recommendations)
+     - [Remove upgradability](#remove-upgradability)
+     - [Simplify overall architecture](#simplify-overall-architecture)
+     - [Make the interaction with Actions more explicit and less reliant on actions reverting](#make-the-interaction-with-actions-more-explicit-and-less-reliant-on-actions-reverting)
+     - [Consider removing storage changes in modifiers](#consider-removing-storage-changes-in-modifiers)
  - [Issues](#issues)
+     - [withdrawFromQueue emits the wrong amount of tokens withdrawn](#withdrawfromqueue-emits-the-wrong-amount-of-tokens-withdrawn)
      - [claimShares should send tokens only if there something to transfer](#claimshares-should-send-tokens-only-if-there-something-to-transfer)
      - [Depositing should allow up to or equal to the cap](#depositing-should-allow-up-to-or-equal-to-the-cap)
+     - [rollOver emits an event for 0 balance](#rollover-emits-an-event-for-0-balance)
+     - [Prefer using uint256 instead of a type with less than 256 bits](#prefer-using-uint256-instead-of-a-type-with-less-than-256-bits)
      - [Cache the length of actions when looping over them](#cache-the-length-of-actions-when-looping-over-them)
      - [Improve gas costs by reducing the use of state variables when possible](#improve-gas-costs-by-reducing-the-use-of-state-variables-when-possible)
      - [OpynPerpVault.onlyLocked() documentation update](#opynperpvaultonlylocked-documentation-update)
@@ -82,8 +89,8 @@
 | SEVERITY       |    OPEN    |    CLOSED    |
 |----------------|:----------:|:------------:|
 |  Informational  |  0  |  0  |
-|  Minor  |  3  |  0  |
-|  Medium  |  2  |  0  |
+|  Minor  |  5  |  0  |
+|  Medium  |  3  |  0  |
 |  Major  |  0  |  0  |
 
 ## Executive summary
@@ -118,6 +125,154 @@ The initial review focused on the [Project name](https://github.com/opynfinance/
 ## Recommendations
 
 We identified a few possible general improvements that are not security issues during the review, which will bring value to the developers and the community reviewing and using the product.
+
+### Remove upgradability
+
+Because this should be easy to understand and fork, remove it.
+
+Upgradability is a feature that allows a developer to upgrade a contract to a new version without having to redeploy the entire codebase. This also means that the storage is usually handled differently if the contract is upgradeable. This also creates more risk when organizing the storage, and more care needs to be put in the design of the storage. It also poses a risk when upgrading the contract to mess up the storage layout. Because the reviewed system is a template of what the developers can do to leverage the Opyn protocol, we believe the added complexity of having upgradability is not worth it.
+
+### Simplify overall architecture
+
+The purpose of this system is to create a simple example that allows devs to understand how to leverage the Opyn protocol. A few methods have deep call stacks, and this doesn't help new developers trying to understand how to use the protocol.
+
+Check the linked [call graph](#call-graph) to see how the methods are called. The deep call stack is a good indicator of a method that needs to be refactored. In some cases a method is only called by only one method, and we recommend removing some of them and adding the code directly in the body's method.
+
+This will help with readability, reduce internal calls and reduce gas costs.
+
+### Make the interaction with Actions more explicit and less reliant on actions reverting
+
+Anyone can call `closePositions()` to finalize a round. 
+
+
+[code/contracts/core/OpynPerpVault.sol#L310-L320](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/3d44603300dd9abffe5a1c1e1c2647e9f6b80c7b/code/contracts/core/OpynPerpVault.sol#L310-L320)
+```solidity
+  /**
+   * @notice allows anyone to close out the previous round by calling "closePositions" on all actions.
+   * @dev this does the following:
+   * 1. calls closePositions on all the actions withdraw the money from all the actions
+   * 2. pay all the fees
+   * 3. snapshots last round's shares and asset balances
+   * 4. empties the pendingDeposits and pulls in those assets to be used in the next round
+   * 5. sets aside assets from the main vault into the withdrawQueue
+   * 6. ends the old round and unlocks the vault
+   */
+  function closePositions() public onlyLocked unlockState {
+```
+
+The first thing that happens when called is to call the internal function `_closeAndWithdraw()`.
+
+
+[code/contracts/core/OpynPerpVault.sol#L321-L322](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/3d44603300dd9abffe5a1c1e1c2647e9f6b80c7b/code/contracts/core/OpynPerpVault.sol#L321-L322)
+```solidity
+    // calls closePositions on all the actions and transfers the assets back into the vault
+    _closeAndWithdraw();
+```
+
+The internal method `_closeAndWithdraw()` goes through every action and tries to close each position.
+
+
+[code/contracts/core/OpynPerpVault.sol#L419-L422](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/3d44603300dd9abffe5a1c1e1c2647e9f6b80c7b/code/contracts/core/OpynPerpVault.sol#L419-L422)
+```solidity
+  function _closeAndWithdraw() internal {
+    for (uint8 i = 0; i < actions.length; i = i + 1) {
+      // 1. close position. this should revert if any position is not ready to be closed.
+      IAction(actions[i]).closePosition();
+```
+
+It expects a revert if the position cannot be closed. This makes the `OpynPerpVault` reliant on the correct implementation of all the actions. If one of the actions was implemented incorrectly or unexpectedly fails, all of the funds (from all of the actions) are blocked. It is desired to reduce the risk of this happening. 
+
+An approach that strengthens the system as a whole is to allow actions to fail, but require them to return `true` if the position can be closed, and `false` if the position cannot be closed. This would allow the `OpynPerpVault` to be more independent of the actions. Ideally when an actions fails, the `OpynPerpVault` will have the option of ignoring the action altogether, instead of blocking all of the funds. 
+
+This can be achieved by doing an external call and handling the returned values.
+
+An example inspired by [OpenZeppelin's `SafeERC20.safeTransfer`](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/566a774222707e424896c0c390a84dc3c13bdcb2/contracts/token/ERC20/utils/SafeERC20.sol#L25) describes such an approach below.
+
+```solidity
+pragma solidity ^0.8.6;
+
+contract UnreliableContract {
+    function run(uint n) public pure returns (bool) {
+        if (n % 2 == 0) {
+            revert("I dislike even numbers");
+        }
+        
+        return true;
+    }
+}
+
+contract CallExternal {
+    event CallResult(bool success, bytes result);
+    
+    UnreliableContract immutable uc;
+    
+    constructor() {
+        uc = new UnreliableContract();
+    }
+    
+    function callExternal() public {
+        // Instead of calling directly like so
+        // uc.run(block.number);
+        
+        // You can use a low level call and handle the failed execution
+        
+        // Concatenates arguments in a Solidity style
+        bytes memory callData = abi.encodeWithSelector(uc.run.selector, block.number);
+        
+        // Does an external call and returns the result.
+        // This type of call does not fail if the external call fails
+        (bool success, bytes memory result) = address(uc).call(callData);
+        
+        // `success` represents if the call failed or not (reverted or not)
+        if (success) {
+            emit CallResult(true, result);
+        } else {
+            // `result` has 2 parts:
+            // `0x08c379a0` represents the error signature, specifically the first 4 bytes of `keccak256("Error(string)")`
+            // The actual abi encoded string "I dislike even numbers"
+            emit CallResult(false, result);
+        }
+    }
+}
+```
+
+The first contract `UnreliableContract` reverts if even numbers are provided in the `run()` method. The second contract `CallExternal` calls the `run()` method of `UnreliableContract` and handles the failed execution.
+
+A suggestion is to use a similar approach as the one described in the `CallExternal` contract. This would allow the `OpynPerpVault` to be more independent of the actions. All interactions with the actions could (but not necessarily) be considered untrustworthy, and the `OpynPerpVault` should be able to handle the failure of the actions.
+
+### Consider removing storage changes in modifiers
+
+There are 2 cases where modifiers that change state are used.
+
+
+[code/contracts/core/OpynPerpVault.sol#L310-L320](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/3d44603300dd9abffe5a1c1e1c2647e9f6b80c7b/code/contracts/core/OpynPerpVault.sol#L310-L320)
+```solidity
+  /**
+   * @notice allows anyone to close out the previous round by calling "closePositions" on all actions.
+   * @dev this does the following:
+   * 1. calls closePositions on all the actions withdraw the money from all the actions
+   * 2. pay all the fees
+   * 3. snapshots last round's shares and asset balances
+   * 4. empties the pendingDeposits and pulls in those assets to be used in the next round
+   * 5. sets aside assets from the main vault into the withdrawQueue
+   * 6. ends the old round and unlocks the vault
+   */
+  function closePositions() public onlyLocked unlockState {
+```
+
+
+[code/contracts/core/OpynPerpVault.sol#L333-L336](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/3d44603300dd9abffe5a1c1e1c2647e9f6b80c7b/code/contracts/core/OpynPerpVault.sol#L333-L336)
+```solidity
+  /**
+   * @notice distributes funds to each action and locks the vault
+   */
+  function rollOver(uint256[] calldata _allocationPercentages) external virtual onlyOwner onlyUnlocked lockState {
+```
+
+Usually modifiers are used to limit access (think about `onlyOwner`) and don't change state or emit events. We believe this pattern (of limiting access) is desired because it's more explicit and less error-prone. It also doesn't hide code within the modifier.
+
+Changing state or having complex logic in the modifier is not incorrect, but it does reduce readability. The amount of generated code is still the same, the modifier's code is effectively "copied" in the contract's bytecode; adding the code from the modifiers (`lockState` and `unlockState`) will not increase / decrease the size of the contract, but it will increase readability.
+
 
 <!-- ### Increase the number of tests
 
@@ -265,6 +420,43 @@ Another way to improve contract size is by breaking them into multiple smaller c
 ## Issues
 
 
+### [`withdrawFromQueue` emits the wrong amount of tokens withdrawn](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/issues/7)
+![Issue status: Open](https://img.shields.io/static/v1?label=Status&message=Open&color=5856D6&style=flat-square) ![Medium](https://img.shields.io/static/v1?label=Severity&message=Medium&color=FF9500&style=flat-square)
+
+**Description**
+
+`withdrawFromQueue` can be called by anyone in order to withdraw deposited tokens from a round:
+
+
+[code/contracts/core/OpynPerpVault.sol#L305-L306](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/d94fcb2e2173008272604705a9fc618710349462/code/contracts/core/OpynPerpVault.sol#L305-L306)
+```solidity
+  function withdrawFromQueue(uint256 _round) external nonReentrant notEmergency {
+    uint256 withdrawAmount = _withdrawFromQueue(_round);
+```
+
+The emitted event is _incorrectly_ using the `withdrawQueueAmount` variable which holds the tokens leftover in the queue to be withdrawn:
+
+
+[code/contracts/core/OpynPerpVault.sol#L464-L471](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/d94fcb2e2173008272604705a9fc618710349462/code/contracts/core/OpynPerpVault.sol#L464-L471)
+```solidity
+    uint256 withdrawAmount = queuedShares.mul(roundTotalAsset[_round]).div(roundTotalShare[_round]);
+
+    // remove user's queued shares
+    userRoundQueuedWithdrawShares[msg.sender][_round] = 0;
+    // decrease total asset we reserved for withdraw
+    withdrawQueueAmount = withdrawQueueAmount.sub(withdrawAmount);
+
+    emit WithdrawFromQueue(msg.sender, withdrawQueueAmount, _round);
+```
+
+**Recommendation**
+
+Fix the code to reference `withdrawAmount` instead which represents the amount of tokens the user deposited in the round.
+
+
+---
+
+
 ### [`claimShares` should send tokens only if there something to transfer](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/issues/5)
 ![Issue status: Open](https://img.shields.io/static/v1?label=Status&message=Open&color=5856D6&style=flat-square) ![Medium](https://img.shields.io/static/v1?label=Severity&message=Medium&color=FF9500&style=flat-square)
 
@@ -329,6 +521,71 @@ Change the `require` to accept the sum of deposited amounts to also be equal to 
 ---
 
 
+### [`rollOver` emits an event for 0 balance](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/issues/8)
+![Issue status: Open](https://img.shields.io/static/v1?label=Status&message=Open&color=5856D6&style=flat-square) ![Minor](https://img.shields.io/static/v1?label=Severity&message=Minor&color=FFCC00&style=flat-square)
+
+**Description**
+
+`rollOver` function is called by the admin in order to allocate different weights to actions in the Vault:
+
+
+[code/contracts/core/OpynPerpVault.sol#L336](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/d94fcb2e2173008272604705a9fc618710349462/code/contracts/core/OpynPerpVault.sol#L336)
+```solidity
+  function rollOver(uint256[] calldata _allocationPercentages) external virtual onlyOwner onlyUnlocked lockState {
+```
+
+In turn, the `_distribute` function is called which distributes the tokens according to the percentage allocation of each action:
+
+
+[code/contracts/core/OpynPerpVault.sol#L434-L435](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/d94fcb2e2173008272604705a9fc618710349462/code/contracts/core/OpynPerpVault.sol#L434-L435)
+```solidity
+  function _distribute(uint256[] memory _percentages) internal nonReentrant {
+    uint256 totalBalance = _effectiveBalance();
+```
+
+The issue is that the `Rollover` event is called regardless of the effective balance of the contract:
+
+
+[code/contracts/core/OpynPerpVault.sol#L339](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/d94fcb2e2173008272604705a9fc618710349462/code/contracts/core/OpynPerpVault.sol#L339)
+```solidity
+    emit Rollover(_allocationPercentages);
+```
+
+**Recommendation**
+
+Ensure that the event is emitted only for non-null balances - when funds are actually allocated to actions.
+
+
+---
+
+
+### [Prefer using `uint256` instead of a type with less than 256 bits](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/issues/6)
+![Issue status: Open](https://img.shields.io/static/v1?label=Status&message=Open&color=5856D6&style=flat-square) ![Minor](https://img.shields.io/static/v1?label=Severity&message=Minor&color=FFCC00&style=flat-square)
+
+**Description**
+
+
+[code/contracts/core/OpynPerpVault.sol#L420](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/3d44603300dd9abffe5a1c1e1c2647e9f6b80c7b/code/contracts/core/OpynPerpVault.sol#L420)
+```solidity
+    for (uint8 i = 0; i < actions.length; i = i + 1) {
+```
+
+
+[code/contracts/core/OpynPerpVault.sol#L441](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/3d44603300dd9abffe5a1c1e1c2647e9f6b80c7b/code/contracts/core/OpynPerpVault.sol#L441)
+```solidity
+    for (uint8 i = 0; i < actions.length; i = i + 1) {
+```
+
+**Recommendation**
+
+Use `uint256`.
+
+**[optional] References**
+
+
+---
+
+
 ### [Cache the length of actions when looping over them](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/issues/3)
 ![Issue status: Open](https://img.shields.io/static/v1?label=Status&message=Open&color=5856D6&style=flat-square) ![Minor](https://img.shields.io/static/v1?label=Severity&message=Minor&color=FFCC00&style=flat-square)
 
@@ -342,6 +599,14 @@ When the total reported amount of assets is estimated by the actions, the storag
     for (uint256 i = 0; i < actions.length; i++) {
       debt = debt.add(IAction(actions[i]).currentValue());
     }
+```
+
+Similarly for `_closeAndWithdraw()`
+
+
+[code/contracts/core/OpynPerpVault.sol#L420](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/3d44603300dd9abffe5a1c1e1c2647e9f6b80c7b/code/contracts/core/OpynPerpVault.sol#L420)
+```solidity
+    for (uint8 i = 0; i < actions.length; i = i + 1) {
 ```
 
 **Recommendation**
