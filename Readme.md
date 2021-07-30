@@ -5,7 +5,7 @@
           </span>
           <br />
           <span id="project-value">
-               Perp Vault Templates
+               Project name
           </span>
     </div>
      <div id="details">
@@ -15,7 +15,7 @@
                </span>
                <br />
                <span class="details-value">
-                    Opyn
+                    Client name
                </span>
                <br />
                <span class="splash-title">
@@ -59,7 +59,7 @@
      - [Increase the number of tests](#increase-the-number-of-tests)
  - [Issues](#issues)
      - [Registering a deposit uses the incorrect initial value for the user](#registering-a-deposit-uses-the-incorrect-initial-value-for-the-user)
-     - [A Vault owner can allocate 100% to one action](#a-vault-owner-can-allocate-100-to-one-action)
+     - [A Vault owner can allocate 100% of tokens to one action](#a-vault-owner-can-allocate-100-of-tokens-to-one-action)
      - [withdrawFromQueue emits the wrong number of tokens withdrawn](#withdrawfromqueue-emits-the-wrong-number-of-tokens-withdrawn)
      - [claimShares should send tokens only if there something to transfer](#claimshares-should-send-tokens-only-if-there-something-to-transfer)
      - [Depositing should allow up to or equal to the cap](#depositing-should-allow-up-to-or-equal-to-the-cap)
@@ -67,6 +67,7 @@
      - [Cache the length of actions when looping over them](#cache-the-length-of-actions-when-looping-over-them)
      - [Improve gas costs by reducing the use of state variables when possible](#improve-gas-costs-by-reducing-the-use-of-state-variables-when-possible)
      - [OpynPerpVault.onlyLocked() documentation update](#opynperpvaultonlylocked-documentation-update)
+     - [IAction.rolloverPosition and IAction.closePosition are not always called together as part round lifecycle](#iactionrolloverposition-and-iactioncloseposition-are-not-always-called-together-as-part-round-lifecycle)
  - [Artifacts](#artifacts)
      - [Surya](#surya)
      - [Coverage](#coverage)
@@ -76,11 +77,11 @@
 
 ## Details
 
-- **Client** Opyn
+- **Client** Client name
 - **Date** July 2021
 - **Lead reviewer** Daniel Luca ([@cleanunicorn](https://twitter.com/cleanunicorn))
 - **Reviewers** Daniel Luca ([@cleanunicorn](https://twitter.com/cleanunicorn)), Andrei Simion ([@andreiashu](https://twitter.com/andreiashu))
-- **Repository**: [Perp Vault Templates](https://github.com/opynfinance/perp-vault-templates)
+- **Repository**: [Project name](https://github.com/opynfinance/perp-vault-templates)
 - **Commit hash** `1248e6606feb3279a94104df6c6dfcb8d46271f4`
 - **Technologies**
   - Solidity
@@ -90,21 +91,32 @@
 
 | SEVERITY       |    OPEN    |    CLOSED    |
 |----------------|:----------:|:------------:|
-|  Informational  |  0  |  0  |
+|  Informational  |  1  |  0  |
 |  Minor  |  4  |  0  |
 |  Medium  |  4  |  0  |
 |  Major  |  1  |  0  |
 
 ## Executive summary
 
-This report represents the results of the engagement with **Opyn** to review **Perp Vault Templates**.
+This report represents the results of the engagement with **Client name** to review **Project name**.
 
-The review was conducted over the course of **1 week** from **26th to 30th of July, 2021**. A total of **10 person-days** were spent reviewing the code.
+The review was conducted over the course of **2 weeks** from **October 15 to November 15, 2020**. A total of **5 person-days** were spent reviewing the code.
 
+We started the review by going through the provided [documentation](https://opyn.gitbook.io/perp-vault/) and the source code.
+
+On Monday we set up a meeting with the client to discuss the project and the current state of the code. We've gone through a few flows, to make sure we understand the overall architecture of the system.
+
+The main purpose of the project is to be an example for developers that want to leverage the Opyn protocol. This is why we consider the project to be simple to understand and provide sufficient functionality to be used in a real-world application.
+
+On Wednesday we set up a new meeting with the client to discuss a few findings and to give access to the issues we've found. We expressed a few concerns regarding to the complexity and reduced readability of the whole system.
+
+We continued to review the code, while remaining in constant communication with the client.
+
+On Friday, at the end of the review, we set up a report delivery meeting where we presented the final report.
 
 ## Scope
 
-The initial review focused on the [Perp Vault Templates](https://github.com/opynfinance/perp-vault-templates) repository, identified by the commit hash `1248e6606feb3279a94104df6c6dfcb8d46271f4`.
+The initial review focused on the [Project name](https://github.com/opynfinance/perp-vault-templates) repository, identified by the commit hash `1248e6606feb3279a94104df6c6dfcb8d46271f4`.
 
 We focused on manually reviewing the codebase, searching for security issues such as, but not limited to, re-entrancy problems, transaction ordering, block timestamp dependency, exception handling, call stack depth limitation, integer overflow/underflow, self-destructible contracts, unsecured balance, use of origin, costly gas patterns, architectural problems, code readability.
 
@@ -119,6 +131,10 @@ We focused on manually reviewing the codebase, searching for security issues suc
 - code/contracts/utils/ZeroXUtils.sol
 - code/contracts/utils/RollOverBase.sol
 - code/contracts/utils/AirswapUtils.sol
+
+Because of the complexity of the codebase and decreased readability, we were unable to perform a complete review. We mostly focused on the core component of the system `OpynPerpVault`, but we also took a look at the other contracts. The actions were mostly considered as "black boxes" and we did not perform a complete review of them. 
+
+Even though the `utils` folder was included in the scope, there was no time to completely review it.
 
 ## Recommendations
 
@@ -318,7 +334,7 @@ The funds they wish to deposit are moved into the vault.
     IERC20(asset).safeTransferFrom(msg.sender, address(this), _amount);
 ```
 
-And the accounting needs to be done for this user, to be handled later.
+And the accounting needs to be done for this user to be handled later.
 
 
 [code/contracts/core/OpynPerpVault.sol#L249-L251](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/3d44603300dd9abffe5a1c1e1c2647e9f6b80c7b/code/contracts/core/OpynPerpVault.sol#L249-L251)
@@ -328,7 +344,7 @@ And the accounting needs to be done for this user, to be handled later.
     );
 ```
 
-On top of the initial value of `userRoundQueuedDepositAmount[_shareRecipient][round]` we need to add the current deposited value of `_amount`.
+On top of the initial value of `userRoundQueuedDepositAmount[_shareRecipient][round]`, we need to add the current deposited value of `_amount`.
 
 However, a copy/paste artifact from `registerWithdraw` was left in the code, the initial value used is `userRoundQueuedWithdrawShares[_shareRecipient][round]` instead of `userRoundQueuedDepositAmount[_shareRecipient][round]`.
 
@@ -336,11 +352,59 @@ However, a copy/paste artifact from `registerWithdraw` was left in the code, the
 
 Update the accounting to reflect the correct initial value of the queued deposit.
 
+**Observation**
+
+These kinds of bugs should be caught by the tests. 
+
+The test that checks this functionality being right is located here.
+
+
+[code/test/unit-tests/core/OpynPerpVault.ts#L318-L338](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/67ce34e00f9c9aa0036573e1c5e144c5f6cffd70/code/test/unit-tests/core/OpynPerpVault.ts#L318-L338)
+```
+    it("should be able to schedule a deposit with WETH", async () => {
+      await weth.connect(depositor6).deposit({ value: depositAmount });
+      await weth.connect(depositor6).approve(vault.address, ethers.constants.MaxUint256);
+
+      const totalAssetBefore = await vault.totalAsset();
+      const sharesBefore = await vault.balanceOf(depositor6.address);
+      const vaultWethBefore = await weth.balanceOf(vault.address);
+      const testAmountToGetBefore = await vault.getSharesByDepositAmount(depositAmount);
+
+      await vault.connect(depositor6).registerDeposit(depositAmount, depositor6.address);
+
+      const totalAssetAfter = await vault.totalAsset();
+      const sharesAfter = await vault.balanceOf(depositor6.address);
+      const vaultWethAfter = await weth.balanceOf(vault.address);
+      const testAmountToGetAfter = await vault.getSharesByDepositAmount(depositAmount);
+
+      expect(sharesAfter.eq(sharesBefore), "should not mint shares").to.be.true;
+      expect(vaultWethAfter.sub(vaultWethBefore).eq(depositAmount)).to.be.true;
+      expect(totalAssetAfter.eq(totalAssetBefore), "should not affect totalAsset").to.be.true;
+      expect(testAmountToGetAfter.eq(testAmountToGetBefore)).to.be.true;
+    });
+```
+
+However, the functionality isn't completely tested. This test only checks going from 0 to `depositAmount`. The broken functionality is related to increasing the deposit amount, which is done by this piece of code (where the bug exists):
+
+
+[code/contracts/core/OpynPerpVault.sol#L249-L251](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/67ce34e00f9c9aa0036573e1c5e144c5f6cffd70/code/contracts/core/OpynPerpVault.sol#L249-L251)
+```solidity
+    userRoundQueuedDepositAmount[_shareRecipient][round] = userRoundQueuedWithdrawShares[_shareRecipient][round].add(
+      _amount
+    );
+```
+
+This hints at the way the code was developed. A test-driven development is a good way to have well-tested code, but the tests need to be written before the code is implemented, and the code needs to only satisfy the tests. In this case, there is additional functionality (increasing the deposit size) that doesn't have an associated test.
+
+Not having a specific test for additional functionality, added to the fact that there are tests checking the code, gives a false sense of security about the correctness of the code.
+
+
+
 
 ---
 
 
-### [A Vault owner can allocate 100% to one action](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/issues/10)
+### [A Vault owner can allocate 100% of tokens to one action](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/issues/10)
 ![Issue status: Open](https://img.shields.io/static/v1?label=Status&message=Open&color=5856D6&style=flat-square) ![Medium](https://img.shields.io/static/v1?label=Severity&message=Medium&color=FF9500&style=flat-square)
 
 **Description**
@@ -518,7 +582,7 @@ There are several places where `uint8` is used as the type for the loop iterator
 The example below shows the difference between 2 variants of code, one using `uint8` and the other `uint256` for the iterators:
 
 ```solidity
-pragma solidity ^0.6.12;
+pragma solidity ^0.7.2;
 
 /**
  * Show the difference in gas costs between a loop that uses a uint8 variable
@@ -528,42 +592,47 @@ pragma solidity ^0.6.12;
  */
 
 contract LoopUint8 {
-    
-    address[] internal arr;
-
-    // 1st call; arr.length == 0: gas cost 42719
-    // 2nd call; arr.length == 1: gas cost 30322
-    // 3rd call; arr.length == 2: gas cost 32925
-    function add(address _new) public {
-        for (uint8 i = 0; i < arr.length; i++) {
-          if (arr[i] == _new) {
-            require(false, 'exists');
-          }
+    // 1st call; size == 0: gas cost 21479
+    // 2nd call; size == 1: gas cost 21558
+    // 3rd call; size == 5: gas cost 21826
+    // 4th call; size == 10: gas cost 22161
+    function add(uint8 _size) public returns(uint8) {
+        uint8 sum = 0;
+        
+        for (uint8 i = 0; i < _size; i++) {
+          sum += i;
         }
         
-        arr.push(_new);
+        return sum;
     }
 }
 
 
 contract LoopUint256 {
-    
-    address[] internal arr;
-
-    // 1st call; arr.length == 0: gas cost 42713
-    // 2nd call; arr.length == 1: gas cost 30304
-    // 3rd call; arr.length == 2: gas cost 32895
-    function add(address _new) public {
-        for (uint256 i = 0; i < arr.length; i++) {
-          if (arr[i] == _new) {
-            require(false, 'exists');
-          }
+    // 1st call; size == 0: gas cost 21452
+    // 2nd call; size == 1: gas cost 21519
+    // 3rd call; size == 5: gas cost 21739
+    // 4th call; size == 10: gas cost 22014
+    function add(uint256 _size) public returns(uint256) {
+        uint256 sum = 0;
+        
+        for (uint256 i = 0; i < _size; i++) {
+          sum += i;
         }
         
-        arr.push(_new);
+        return sum;
     }
 }
 ```
+
+It's important to note that the loop below will always fail because of an out of gas issue. The iterator never hits the limit to stop, it will max out at 255 and restart from 0, thus it will never be larger than 300 to trigger the end of the loop.
+
+```solidity
+for (uint8 i = 0; i < 300; i++) {
+    // do something
+}
+```
+
 
 **Recommendation**
 
@@ -714,6 +783,68 @@ Reword the documentation text to read (_should_ instead of _can_):
 ---
 
 
+### [`IAction.rolloverPosition` and `IAction.closePosition` are not always called together as part round lifecycle](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/issues/11)
+![Issue status: Open](https://img.shields.io/static/v1?label=Status&message=Open&color=5856D6&style=flat-square) ![Informational](https://img.shields.io/static/v1?label=Severity&message=Informational&color=34C759&style=flat-square)
+
+**Description**
+
+When a round is started, the Vault owner will call `rollOver` function, which in turn calls `_distribute`.  The `IAction.rolloverPosition` is called only if the percentage allocation amount is non-zero:
+
+
+[code/contracts/core/OpynPerpVault.sol#L447-L450](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/d94fcb2e2173008272604705a9fc618710349462/code/contracts/core/OpynPerpVault.sol#L447-L450)
+```solidity
+      if (newAmount > 0) {
+        IERC20(asset).safeTransfer(actions[i], newAmount);
+        IAction(actions[i]).rolloverPosition();
+      }
+```
+
+When a round is closed, the `IAction.closePosition` function is always called:
+
+
+[code/contracts/core/OpynPerpVault.sol#L419-L422](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/d94fcb2e2173008272604705a9fc618710349462/code/contracts/core/OpynPerpVault.sol#L419-L422)
+```solidity
+  function _closeAndWithdraw() internal {
+    for (uint8 i = 0; i < actions.length; i = i + 1) {
+      // 1. close position. this should revert if any position is not ready to be closed.
+      IAction(actions[i]).closePosition();
+```
+
+Upon rollover round, the state in the action is updated:
+
+
+[code/contracts/utils/RollOverBase.sol#L64-L70](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/d94fcb2e2173008272604705a9fc618710349462/code/contracts/utils/RollOverBase.sol#L64-L70)
+```solidity
+  function _rollOverNextOTokenAndActivate() internal onlyCommitted {
+    require(block.timestamp - commitStateStart > MIN_COMMIT_PERIOD, "COMMIT_PHASE_NOT_OVER");
+
+    otoken = nextOToken;
+    nextOToken = address(0);
+
+    state = ActionState.Activated;
+```
+
+And the close position step is dependent on this state in order to correctly function:
+
+
+[code/contracts/example-actions/ShortOToken.sol#L234-L238](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/d94fcb2e2173008272604705a9fc618710349462/code/contracts/example-actions/ShortOToken.sol#L234-L238)
+```solidity
+  function canClosePosition() public view returns (bool) {
+    if (otoken != address(0) && lockedAsset != 0) {
+      return _canSettleVault();
+    }
+    return block.timestamp > rolloverTime + 1 days;
+```
+
+**Recommendation**
+
+While we have yet to find a specific issue with the code under review, we believe that as a design decision, the system should always call `IAction.rolloverPosition` and `IAction.closePosition` in tandem.
+
+In the case above, either _always_ call `IAction.rolloverPosition` regardless of the allocation percentage for the action or add code in `_closeAndWithdraw` function to only call `IAction.closePosition` if the action's balance is non-zero.
+
+---
+
+
 ## Artifacts
 
 ### Surya
@@ -774,6 +905,28 @@ Sūrya is a utility tool for smart contract systems. It provides a number of vis
 ##### Inheritance
 
 ![OpynPerpVault Inheritance](./static/graphs/OpynPerpVault_inheritance.png)
+
+
+***ShortOToken***
+
+##### Call graph
+
+![ShortOToken Graph](./static/graphs/ShortOToken_graph.png)
+
+##### Inheritance
+
+![ShortOToken Inheritance](./static/graphs/ShortOToken_inheritance.png)
+
+***ShortPutWithETH***
+
+##### Call graph
+
+![ShortPutWithETH Graph](./static/graphs/ShortPutWithETH_graph.png)
+
+##### Inheritance
+
+![ShortPutWithETH Inheritance](./static/graphs/ShortPutWithETH_inheritance.png)
+
 
 <!-- ***Contract***
 
@@ -841,10 +994,51 @@ $ npx surya describe ./contracts/core/OpynPerpVault.sol
     - [Int] _payRoundFee #
     - [Int] _snapshotShareAndAsset #
 
+ ($) = payable function
+ # = non-constant function
+```
+
+```text
+$ npx surya describe ./contracts/example-actions/ShortOToken.sol
+ +  ShortOToken (IAction, OwnableUpgradeable, AuctionUtils, AirswapUtils, RollOverBase, GammaUtils)
+    - [Pub] <Constructor> #
+    - [Ext] currentValue
+    - [Ext] closePosition #
+       - modifiers: onlyVault
+    - [Ext] rolloverPosition #
+       - modifiers: onlyVault
+    - [Ext] mintAndStartAuction #
+       - modifiers: onlyOwner,onlyActivated
+    - [Ext] mintAndBidInAuction #
+       - modifiers: onlyOwner,onlyActivated
+    - [Ext] mintAndTradeAirSwapOTC #
+       - modifiers: onlyOwner,onlyActivated
+    - [Pub] canClosePosition
+    - [Int] _canSettleVault
+    - [Int] _customOTokenCheck
+    - [Int] _isValidStrike
+    - [Int] _isValidExpiry
 
  ($) = payable function
  # = non-constant function
+```
 
+```text
+$ npx surya describe ./contracts/example-actions/ShortPutWithETH.sol
+ +  ShortPutWithETH (IAction, OwnableUpgradeable, CompoundUtils, AirswapUtils, RollOverBase, GammaUtils)
+    - [Pub] <Constructor> #
+    - [Ext] currentValue
+    - [Ext] rolloverPosition #
+       - modifiers: onlyVault
+    - [Pub] canClosePosition
+    - [Ext] closePosition #
+       - modifiers: onlyVault
+    - [Ext] borrowMintAndTradeOTC #
+       - modifiers: onlyOwner,onlyActivated
+    - [Int] _canSettleVault
+
+ ($) = payable function
+ # = non-constant function
 ```
 
 ### Coverage
