@@ -5,7 +5,7 @@
           </span>
           <br />
           <span id="project-value">
-               Project name
+               Perp Vault Templates
           </span>
     </div>
      <div id="details">
@@ -15,7 +15,7 @@
                </span>
                <br />
                <span class="details-value">
-                    Client name
+                    Opyn
                </span>
                <br />
                <span class="splash-title">
@@ -49,18 +49,20 @@
  - [Details](#details)
  - [Issues Summary](#issues-summary)
  - [Executive summary](#executive-summary)
-     - [Week 1](#week-1)
  - [Scope](#scope)
  - [Recommendations](#recommendations)
      - [Remove upgradability](#remove-upgradability)
      - [Simplify overall architecture](#simplify-overall-architecture)
      - [Make the interaction with Actions more explicit and less reliant on actions reverting](#make-the-interaction-with-actions-more-explicit-and-less-reliant-on-actions-reverting)
      - [Consider removing storage changes in modifiers](#consider-removing-storage-changes-in-modifiers)
+     - [Use the Checks-Effects-Interactions Pattern](#use-the-checks-effects-interactions-pattern)
+     - [Increase the number of tests](#increase-the-number-of-tests)
  - [Issues](#issues)
-     - [withdrawFromQueue emits the wrong amount of tokens withdrawn](#withdrawfromqueue-emits-the-wrong-amount-of-tokens-withdrawn)
+     - [Registering a deposit uses the incorrect initial value for the user](#registering-a-deposit-uses-the-incorrect-initial-value-for-the-user)
+     - [A Vault owner can allocate 100% to one action](#a-vault-owner-can-allocate-100-to-one-action)
+     - [withdrawFromQueue emits the wrong number of tokens withdrawn](#withdrawfromqueue-emits-the-wrong-number-of-tokens-withdrawn)
      - [claimShares should send tokens only if there something to transfer](#claimshares-should-send-tokens-only-if-there-something-to-transfer)
      - [Depositing should allow up to or equal to the cap](#depositing-should-allow-up-to-or-equal-to-the-cap)
-     - [rollOver emits an event for 0 balance](#rollover-emits-an-event-for-0-balance)
      - [Prefer using uint256 instead of a type with less than 256 bits](#prefer-using-uint256-instead-of-a-type-with-less-than-256-bits)
      - [Cache the length of actions when looping over them](#cache-the-length-of-actions-when-looping-over-them)
      - [Improve gas costs by reducing the use of state variables when possible](#improve-gas-costs-by-reducing-the-use-of-state-variables-when-possible)
@@ -74,11 +76,11 @@
 
 ## Details
 
-- **Client** Client name
+- **Client** Opyn
 - **Date** July 2021
 - **Lead reviewer** Daniel Luca ([@cleanunicorn](https://twitter.com/cleanunicorn))
 - **Reviewers** Daniel Luca ([@cleanunicorn](https://twitter.com/cleanunicorn)), Andrei Simion ([@andreiashu](https://twitter.com/andreiashu))
-- **Repository**: [Project name](https://github.com/opynfinance/perp-vault-templates)
+- **Repository**: [Perp Vault Templates](https://github.com/opynfinance/perp-vault-templates)
 - **Commit hash** `1248e6606feb3279a94104df6c6dfcb8d46271f4`
 - **Technologies**
   - Solidity
@@ -89,26 +91,22 @@
 | SEVERITY       |    OPEN    |    CLOSED    |
 |----------------|:----------:|:------------:|
 |  Informational  |  0  |  0  |
-|  Minor  |  5  |  0  |
-|  Medium  |  3  |  0  |
-|  Major  |  0  |  0  |
+|  Minor  |  4  |  0  |
+|  Medium  |  4  |  0  |
+|  Major  |  1  |  0  |
 
 ## Executive summary
 
-This report represents the results of the engagement with **Client name** to review **Project name**.
+This report represents the results of the engagement with **Opyn** to review **Perp Vault Templates**.
 
-The review was conducted over the course of **2 weeks** from **October 15 to November 15, 2020**. A total of **5 person-days** were spent reviewing the code.
-
-### Week 1
-
-During the first week, we ...
+The review was conducted over the course of **1 week** from **26th to 30th of July, 2021**. A total of **10 person-days** were spent reviewing the code.
 
 
 ## Scope
 
-The initial review focused on the [Project name](https://github.com/opynfinance/perp-vault-templates) repository, identified by the commit hash `1248e6606feb3279a94104df6c6dfcb8d46271f4`. ...
+The initial review focused on the [Perp Vault Templates](https://github.com/opynfinance/perp-vault-templates) repository, identified by the commit hash `1248e6606feb3279a94104df6c6dfcb8d46271f4`.
 
-<!-- We focused on manually reviewing the codebase, searching for security issues such as, but not limited to, re-entrancy problems, transaction ordering, block timestamp dependency, exception handling, call stack depth limitation, integer overflow/underflow, self-destructible contracts, unsecured balance, use of origin, costly gas patterns, architectural problems, code readability. -->
+We focused on manually reviewing the codebase, searching for security issues such as, but not limited to, re-entrancy problems, transaction ordering, block timestamp dependency, exception handling, call stack depth limitation, integer overflow/underflow, self-destructible contracts, unsecured balance, use of origin, costly gas patterns, architectural problems, code readability.
 
 **Includes:**
 
@@ -128,15 +126,13 @@ We identified a few possible general improvements that are not security issues d
 
 ### Remove upgradability
 
-Because this should be easy to understand and fork, remove it.
-
-Upgradability is a feature that allows a developer to upgrade a contract to a new version without having to redeploy the entire codebase. This also means that the storage is usually handled differently if the contract is upgradeable. This also creates more risk when organizing the storage, and more care needs to be put in the design of the storage. It also poses a risk when upgrading the contract to mess up the storage layout. Because the reviewed system is a template of what the developers can do to leverage the Opyn protocol, we believe the added complexity of having upgradability is not worth it.
+Upgradability is a feature that allows a developer to upgrade a contract to a new version without having to redeploy the entire codebase. This also means that the storage is usually handled differently if the contract is upgradeable. It creates more risk when organizing the storage, and more care needs to be put into the design of the storage. Additionally, it poses a risk when upgrading the contract to mess up the storage layout. Because the reviewed system is a template of what developers can do to leverage the Opyn protocol, we believe the added complexity of having upgradability is not worth it.
 
 ### Simplify overall architecture
 
 The purpose of this system is to create a simple example that allows devs to understand how to leverage the Opyn protocol. A few methods have deep call stacks, and this doesn't help new developers trying to understand how to use the protocol.
 
-Check the linked [call graph](#call-graph) to see how the methods are called. The deep call stack is a good indicator of a method that needs to be refactored. In some cases a method is only called by only one method, and we recommend removing some of them and adding the code directly in the body's method.
+Check the linked [call graph](#call-graph) to see how the methods are called. The deep call stack is a good indicator of a method that needs to be refactored. In some cases, an internal method has only one caller method, and we recommend removing some of them and adding the code directly in the caller body's method.
 
 This will help with readability, reduce internal calls and reduce gas costs.
 
@@ -160,7 +156,7 @@ Anyone can call `closePositions()` to finalize a round.
   function closePositions() public onlyLocked unlockState {
 ```
 
-The first thing that happens when called is to call the internal function `_closeAndWithdraw()`.
+When called, the first thing that happens is to call the internal function `_closeAndWithdraw()`.
 
 
 [code/contracts/core/OpynPerpVault.sol#L321-L322](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/3d44603300dd9abffe5a1c1e1c2647e9f6b80c7b/code/contracts/core/OpynPerpVault.sol#L321-L322)
@@ -180,16 +176,16 @@ The internal method `_closeAndWithdraw()` goes through every action and tries to
       IAction(actions[i]).closePosition();
 ```
 
-It expects a revert if the position cannot be closed. This makes the `OpynPerpVault` reliant on the correct implementation of all the actions. If one of the actions was implemented incorrectly or unexpectedly fails, all of the funds (from all of the actions) are blocked. It is desired to reduce the risk of this happening. 
+It expects a revert if the position cannot be closed. This makes the `OpynPerpVault` reliant on the correct implementation of all the actions and their 3rd part systems. If one of the actions was implemented incorrectly or the platform it relies on unexpectedly fails, all of the funds (from all of the actions) are blocked. It is desired to reduce the risk of this happening. 
 
-An approach that strengthens the system as a whole is to allow actions to fail, but require them to return `true` if the position can be closed, and `false` if the position cannot be closed. This would allow the `OpynPerpVault` to be more independent of the actions. Ideally when an actions fails, the `OpynPerpVault` will have the option of ignoring the action altogether, instead of blocking all of the funds. 
+An approach that strengthens the system as a whole is to allow actions to fail but require them to return `true` if the position can be closed and `false` if the position cannot be closed. This would allow the `OpynPerpVault` to be more independent of the actions. In addition, ideally, when an action fails, the `OpynPerpVault` will have the option of ignoring the action altogether instead of blocking all of the funds. 
 
 This can be achieved by doing an external call and handling the returned values.
 
 An example inspired by [OpenZeppelin's `SafeERC20.safeTransfer`](https://github.com/OpenZeppelin/openzeppelin-contracts/blob/566a774222707e424896c0c390a84dc3c13bdcb2/contracts/token/ERC20/utils/SafeERC20.sol#L25) describes such an approach below.
 
 ```solidity
-pragma solidity ^0.8.6;
+pragma solidity >=0.7.2;
 
 contract UnreliableContract {
     function run(uint n) public pure returns (bool) {
@@ -269,158 +265,132 @@ There are 2 cases where modifiers that change state are used.
   function rollOver(uint256[] calldata _allocationPercentages) external virtual onlyOwner onlyUnlocked lockState {
 ```
 
-Usually modifiers are used to limit access (think about `onlyOwner`) and don't change state or emit events. We believe this pattern (of limiting access) is desired because it's more explicit and less error-prone. It also doesn't hide code within the modifier.
+Usually modifiers are used to limit access (think about `onlyOwner`) and don't change state or emit events. We believe this pattern (of limiting access) is desired because it is more explicit and less error-prone. It also doesn't hide state-changing code within the modifier.
 
-Changing state or having complex logic in the modifier is not incorrect, but it does reduce readability. The amount of generated code is still the same, the modifier's code is effectively "copied" in the contract's bytecode; adding the code from the modifiers (`lockState` and `unlockState`) will not increase / decrease the size of the contract, but it will increase readability.
+Changing state or having complex logic in the modifier is not incorrect, but it does reduce readability. The amount of generated code is still the same, the modifier's code is effectively "copied" in the contract's bytecode; adding the code from the modifiers (`lockState` and `unlockState`) will not increase/decrease the size of the contract, but it will increase readability.
 
+### Use the Checks-Effects-Interactions Pattern
 
-<!-- ### Increase the number of tests
+The [Checks-Effects-Interactions Pattern](https://docs.soliditylang.org/en/develop/security-considerations.html#use-the-checks-effects-interactions-pattern) is a defensive security practice whereby calls to other (external or internal) contracts should be made only after the required checks have been made and any state changes performed.
 
-A good rule of thumb is to have 100% test coverage. This does not guarantee the lack of security problems, but it means that the desired functionality behaves as intended. The negative tests also bring a lot of value because not allowing some actions to happen is also part of the desired behavior.
+Note that calls to known contracts might in turn cause calls to unknown contracts, so it is better to just apply this pattern.
 
--->
-
-<!-- ### Set up Continuous Integration
-
-Use one of the platforms that offer Continuous Integration services and implement a list of actions that compile, test, run coverage and create alerts when the pipeline fails.
-
-Because the repository is hosted on GitHub, the most painless way to set up the Continuous Integration is through [GitHub Actions](https://docs.github.com/en/free-pro-team@latest/actions).
-
-Setting up the workflow can start based on this example template.
+We found that the Opyn Perp Vault Templates, follows this recommendation well, apart from the  `_snapshotShareAndAsset` where a call to the `_mint` function is performed before a state change:
 
 
-```yml
-name: Continuous Integration
-
-on:
-  push:
-    branches: [master]
-  pull_request:
-    branches: [master]
-
-jobs:
-  build:
-    name: Build and test
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [12.x]
-    steps:
-    - uses: actions/checkout@v2
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v1
-      with:
-        node-version: ${{ matrix.node-version }}
-    - run: npm ci
-    - run: cp ./config.sample.js ./config.js
-    - run: npm test
-
-  coverage:
-    name: Coverage
-    needs: build
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [12.x]
-    steps:
-    - uses: actions/checkout@v2
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v1
-      with:
-        node-version: ${{ matrix.node-version }}
-    - run: npm ci
-    - run: cp ./config.sample.js ./config.js
-    - run: npm run coverage
-    - uses: actions/upload-artifact@v2
-      with:
-        name: Coverage ${{ matrix.node-version }}
-        path: |
-          coverage/
+[code/contracts/core/OpynPerpVault.sol#L565-L568](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/d94fcb2e2173008272604705a9fc618710349462/code/contracts/core/OpynPerpVault.sol#L565-L568)
+```solidity
+    uint256 sharesToMint = pendingDeposit.mul(totalShares).div(vaultBalance);
+    _mint(address(this), sharesToMint);
+    pendingDeposit = 0;
+  }
 ```
 
-This CI template activates on pushes and pull requests on the **master** branch.
+In this case, this is not a security issue since `_mint` is part of the `ERC20` contract owned by the system. Nonetheless, our recommendation is to perform the `pendingDeposit` value reset before the call to the `mint` function.
 
-```yml
-on:
-  push:
-    branches: [master]
-  pull_request:
-    branches: [master]
-```
+### Increase the number of tests
 
-It uses an [Ubuntu Docker](https://hub.docker.com/_/ubuntu) image as a base for setting up the project.
-
-```yml
-    runs-on: ubuntu-latest
-```
-
-Multiple Node.js versions can be used to check integration. However, because this is not primarily a Node.js project, multiple versions don't provide added value.
-
-```yml
-    strategy:
-      matrix:
-        node-version: [12.x]
-```
-
-A script item should be added in the `scripts` section of [package.json](./code/package.json) that runs all tests.
-
-```json
-{
-   "script": {
-      "test": "buidler test"
-   }
-}
-```
-
-This can then be called by running `npm test` after setting up the dependencies with `npm ci`.
-
-If any hidden variables need to be defined, you can set them up in a local version of `./config.sample.js` (locally named `./config.js`). If you decide to do that, you should also add `./config.js` in `.gitignore` to make sure no hidden variables are pushed to the public repository. The sample config file `./config.sample.js` should be sufficient to pass the test suite.
-
-```yml
-    steps:
-    - uses: actions/checkout@v2
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v1
-      with:
-        node-version: ${{ matrix.node-version }}
-    - run: npm ci
-    - run: cp ./config.sample.js ./config.js
-    - run: npm test
-```
-
-You can also choose to run coverage and upload the generated artifacts.
-
-```yml
-    - run: npm run coverage
-    - uses: actions/upload-artifact@v2
-      with:
-        name: Coverage ${{ matrix.node-version }}
-        path: |
-          coverage/
-```
-
-At the moment, checking the artifacts is not [that](https://github.community/t/browsing-artifacts/16954) [easy](https://github.community/t/need-clarification-on-github-actions/16027/2), because one needs to download the zip archive, unpack it and check it. However, the coverage can be checked in the **Actions** section once it's set up.
-
--->
-
-<!-- ### Contract size
-
-The contracts are dangerously close to the hard limit defined by [EIP-170](https://eips.ethereum.org/EIPS/eip-170), specifically **24676 bytes**.
-
-Depending on the Solidity compiler version and the optimization runs, the contract size might increase over the hard limit. As stated in [the Solidity documentation](https://solidity.readthedocs.io/en/latest/using-the-compiler.html#using-the-commandline-compiler), increasing the number of optimizer runs increases the contract size.
-
-> If you want the initial contract deployment to be cheaper and the later function executions to be more expensive, set it to `--optimize-runs=1`. If you expect many transactions and do not care for higher deployment cost and output size, set `--optimize-runs` to a high number.
-
-Even if you remove the unused internal functions, it will not reduce the contract size because the Solidity compiler shakes that unused code out of the generated bytecode.
-
-#### DELEGATECALL approach
-
-Another way to improve contract size is by breaking them into multiple smaller contracts, grouped by functionality and using `DELEGATECALL` to execute that code. A standard that defines code splitting and selective code upgrade is the [EIP-2535 Diamond Standard](https://eips.ethereum.org/EIPS/eip-2535), which is an extension of [Transparent Contract Standard](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-1538.md). A detailed explanation, documentation and implementations can be found in the [EIP-2535](https://eips.ethereum.org/EIPS/eip-2535). However, the current EIP is in **Draft** status, which means the interface, implementation, and overall architecture might change. Another thing to keep in mind is that using this pattern increases the gas cost. -->
+A good rule of thumb is to have 100% test coverage. This does not guarantee the lack of security problems, but it means that the desired functionality behaves as intended. The negative tests also bring a lot of value because not allowing some actions to happen is part of the desired behavior.
 
 ## Issues
 
 
-### [`withdrawFromQueue` emits the wrong amount of tokens withdrawn](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/issues/7)
+### [Registering a deposit uses the incorrect initial value for the user](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/issues/9)
+![Issue status: Open](https://img.shields.io/static/v1?label=Status&message=Open&color=5856D6&style=flat-square) ![Major](https://img.shields.io/static/v1?label=Severity&message=Major&color=ff3b30&style=flat-square)
+
+**Description**
+
+When the vault is locked, the users can still queue deposits and withdraws. However, they cannot be immediately accessed, so specific accounting needs to be done.
+
+Users call `registerDeposit`:
+
+
+[code/contracts/core/OpynPerpVault.sol#L245](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/3d44603300dd9abffe5a1c1e1c2647e9f6b80c7b/code/contracts/core/OpynPerpVault.sol#L245)
+```solidity
+  function registerDeposit(uint256 _amount, address _shareRecipient) external onlyLocked {
+```
+
+The funds they wish to deposit are moved into the vault.
+
+
+[code/contracts/core/OpynPerpVault.sol#L246](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/3d44603300dd9abffe5a1c1e1c2647e9f6b80c7b/code/contracts/core/OpynPerpVault.sol#L246)
+```solidity
+    IERC20(asset).safeTransferFrom(msg.sender, address(this), _amount);
+```
+
+And the accounting needs to be done for this user, to be handled later.
+
+
+[code/contracts/core/OpynPerpVault.sol#L249-L251](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/3d44603300dd9abffe5a1c1e1c2647e9f6b80c7b/code/contracts/core/OpynPerpVault.sol#L249-L251)
+```solidity
+    userRoundQueuedDepositAmount[_shareRecipient][round] = userRoundQueuedWithdrawShares[_shareRecipient][round].add(
+      _amount
+    );
+```
+
+On top of the initial value of `userRoundQueuedDepositAmount[_shareRecipient][round]` we need to add the current deposited value of `_amount`.
+
+However, a copy/paste artifact from `registerWithdraw` was left in the code, the initial value used is `userRoundQueuedWithdrawShares[_shareRecipient][round]` instead of `userRoundQueuedDepositAmount[_shareRecipient][round]`.
+
+**Recommendation**
+
+Update the accounting to reflect the correct initial value of the queued deposit.
+
+
+---
+
+
+### [A Vault owner can allocate 100% to one action](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/issues/10)
+![Issue status: Open](https://img.shields.io/static/v1?label=Status&message=Open&color=5856D6&style=flat-square) ![Medium](https://img.shields.io/static/v1?label=Severity&message=Medium&color=FF9500&style=flat-square)
+
+**Description**
+
+A Vault owner can call `rollOver` function in order to distribute the funds to the actions. The `_allocationPercentages` argument deals with how much each action should have allocated as a percentage of the available funds in the Vault:
+
+
+[code/contracts/core/OpynPerpVault.sol#L336-L341](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/d94fcb2e2173008272604705a9fc618710349462/code/contracts/core/OpynPerpVault.sol#L336-L341)
+```solidity
+  function rollOver(uint256[] calldata _allocationPercentages) external virtual onlyOwner onlyUnlocked lockState {
+    require(_allocationPercentages.length == actions.length, "INVALID_INPUT");
+
+    emit Rollover(_allocationPercentages);
+
+    _distribute(_allocationPercentages);
+```
+
+The `_distribute` function is responsible for ensuring that each action has allocated its respective share of funds: 
+
+
+[code/contracts/core/OpynPerpVault.sol#L434-L443](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/d94fcb2e2173008272604705a9fc618710349462/code/contracts/core/OpynPerpVault.sol#L434-L443)
+```solidity
+  function _distribute(uint256[] memory _percentages) internal nonReentrant {
+    uint256 totalBalance = _effectiveBalance();
+
+    currentRoundStartingAmount = totalBalance;
+
+    // keep track of total percentage to make sure we're summing up to 100%
+    uint256 sumPercentage;
+    for (uint8 i = 0; i < actions.length; i = i + 1) {
+      sumPercentage = sumPercentage.add(_percentages[i]);
+      require(sumPercentage <= BASE, "PERCENTAGE_SUM_EXCEED_MAX");
+```
+
+The issue is that there is no restriction about a maximum or minimum percentage allocation per action. This means that an owner can allocate 100% to only one action, irrespective of how many actions have been defined in the Vault.
+
+This makes a Vault less transparent for its potential users since ultimately the owner can decide to allocate all the funds to only one (highly risky) action.
+
+**Recommendation**
+
+In order to reduce the amount of trust that a user needs to place in a Vault owner, a `minActionAllocationPercentage` parameter should be added to the contract. It can be specified in the `init` function, along with the other Vault parameters.  Once set this action should not be allowed to change (ie. no setter function).
+
+The `minActionAllocationPercentage` parameter will specify a minimum allocation percentage for each action in the Vault. It will make the behavior of the system more predictable and transparent to its users. Even if set to 0 by the owner, its presence ensures that users know what they are signing up to when depositing assets into the vault.
+
+NB: care should be taken to ensure correct validation of its value during the `init` stage. For example, having a 34% value for this parameter for a Vault with 3 actions would render the contract unable to allocate funds during `rollOver` stage.
+
+---
+
+
+### [`withdrawFromQueue` emits the wrong number of tokens withdrawn](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/issues/7)
 ![Issue status: Open](https://img.shields.io/static/v1?label=Status&message=Open&color=5856D6&style=flat-square) ![Medium](https://img.shields.io/static/v1?label=Severity&message=Medium&color=FF9500&style=flat-square)
 
 **Description**
@@ -451,7 +421,7 @@ The emitted event is _incorrectly_ using the `withdrawQueueAmount` variable whic
 
 **Recommendation**
 
-Fix the code to reference `withdrawAmount` instead which represents the amount of tokens the user deposited in the round.
+Fix the code to reference `withdrawAmount` instead which represents the number of tokens the user deposited in the round.
 
 
 ---
@@ -468,7 +438,7 @@ After enough time passes and the round is closed, by calling `closePositions`, t
 
 In order to do this, they need to call `claimShares`.
 
-The method calculates how many tokens they should have received, in case they were to join when the vault was unlocked, and transfers those tokens to the depositor.
+The method calculates how many tokens they should have received, in case they were to join when the vault was unlocked and transfers those tokens to the depositor.
 
 The calculated value can be zero, either in case the depositor never added tokens, or the depositor already claimed their tokens. However, the transfer happens either way, for 0 tokens or for a positive value of tokens.
 
@@ -511,49 +481,11 @@ When they are called, the total amount of locked funds are checked to be up to t
     require(totalWithDepositedAmount < cap, "Cap exceeded");
 ```
 
-The check makes sure the amount of funds is strictly less than the limit. This will force the last user joining the vault to send an awkward amount of funds (similar to `99999999`). Allowing the total amount of funds to equal will make the user experience better, and also the total reported amount of funds displayed will be easier to the eye.
+The check makes sure the amount of funds is strictly less than the limit. This will force the last user joining the vault to send an awkward amount of funds (similar to `99999999`). Allowing the total amount of funds to equal will make the user experience better, and also, the total reported amount of funds displayed will be easier to the eye.
 
 **Recommendation**
 
-Change the `require` to accept the sum of deposited amounts to also be equal to the cap.
-
-
----
-
-
-### [`rollOver` emits an event for 0 balance](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/issues/8)
-![Issue status: Open](https://img.shields.io/static/v1?label=Status&message=Open&color=5856D6&style=flat-square) ![Minor](https://img.shields.io/static/v1?label=Severity&message=Minor&color=FFCC00&style=flat-square)
-
-**Description**
-
-`rollOver` function is called by the admin in order to allocate different weights to actions in the Vault:
-
-
-[code/contracts/core/OpynPerpVault.sol#L336](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/d94fcb2e2173008272604705a9fc618710349462/code/contracts/core/OpynPerpVault.sol#L336)
-```solidity
-  function rollOver(uint256[] calldata _allocationPercentages) external virtual onlyOwner onlyUnlocked lockState {
-```
-
-In turn, the `_distribute` function is called which distributes the tokens according to the percentage allocation of each action:
-
-
-[code/contracts/core/OpynPerpVault.sol#L434-L435](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/d94fcb2e2173008272604705a9fc618710349462/code/contracts/core/OpynPerpVault.sol#L434-L435)
-```solidity
-  function _distribute(uint256[] memory _percentages) internal nonReentrant {
-    uint256 totalBalance = _effectiveBalance();
-```
-
-The issue is that the `Rollover` event is called regardless of the effective balance of the contract:
-
-
-[code/contracts/core/OpynPerpVault.sol#L339](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/d94fcb2e2173008272604705a9fc618710349462/code/contracts/core/OpynPerpVault.sol#L339)
-```solidity
-    emit Rollover(_allocationPercentages);
-```
-
-**Recommendation**
-
-Ensure that the event is emitted only for non-null balances - when funds are actually allocated to actions.
+Change the `require` to accept the sum of deposited amounts to be equal to the cap.
 
 
 ---
@@ -563,6 +495,10 @@ Ensure that the event is emitted only for non-null balances - when funds are act
 ![Issue status: Open](https://img.shields.io/static/v1?label=Status&message=Open&color=5856D6&style=flat-square) ![Minor](https://img.shields.io/static/v1?label=Severity&message=Minor&color=FFCC00&style=flat-square)
 
 **Description**
+
+The EVM works with 256bit/32byte words. For smaller data types, further operations are performed to downscale from 256 bits to the required lower bites type, and therefore having `uint8` as an iterator consumes more gas than keeping it to `uint256`.
+
+There are several places where `uint8` is used as the type for the loop iterator:
 
 
 [code/contracts/core/OpynPerpVault.sol#L420](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/3d44603300dd9abffe5a1c1e1c2647e9f6b80c7b/code/contracts/core/OpynPerpVault.sol#L420)
@@ -578,9 +514,60 @@ Ensure that the event is emitted only for non-null balances - when funds are act
 
 **Recommendation**
 
-Use `uint256`.
 
-**[optional] References**
+The example below shows the difference between 2 variants of code, one using `uint8` and the other `uint256` for the iterators:
+
+```solidity
+pragma solidity ^0.6.12;
+
+/**
+ * Show the difference in gas costs between a loop that uses a uint8 variable
+ * and one that uses uint256 variable.
+ * 
+ * Both contracts compiled with `Enable Optimization` set to 200 runs.
+ */
+
+contract LoopUint8 {
+    
+    address[] internal arr;
+
+    // 1st call; arr.length == 0: gas cost 42719
+    // 2nd call; arr.length == 1: gas cost 30322
+    // 3rd call; arr.length == 2: gas cost 32925
+    function add(address _new) public {
+        for (uint8 i = 0; i < arr.length; i++) {
+          if (arr[i] == _new) {
+            require(false, 'exists');
+          }
+        }
+        
+        arr.push(_new);
+    }
+}
+
+
+contract LoopUint256 {
+    
+    address[] internal arr;
+
+    // 1st call; arr.length == 0: gas cost 42713
+    // 2nd call; arr.length == 1: gas cost 30304
+    // 3rd call; arr.length == 2: gas cost 32895
+    function add(address _new) public {
+        for (uint256 i = 0; i < arr.length; i++) {
+          if (arr[i] == _new) {
+            require(false, 'exists');
+          }
+        }
+        
+        arr.push(_new);
+    }
+}
+```
+
+**Recommendation**
+
+Use `uint256` for the loop iterators.
 
 
 ---
@@ -601,7 +588,7 @@ When the total reported amount of assets is estimated by the actions, the storag
     }
 ```
 
-Similarly for `_closeAndWithdraw()`
+Similarly for `_closeAndWithdraw()`:
 
 
 [code/contracts/core/OpynPerpVault.sol#L420](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/3d44603300dd9abffe5a1c1e1c2647e9f6b80c7b/code/contracts/core/OpynPerpVault.sol#L420)
@@ -613,6 +600,61 @@ Similarly for `_closeAndWithdraw()`
 
 Cache the length locally and use the local variable in the loop.
 
+**Reference**
+
+An example was created to illustrate the gas difference with or without length cache.
+
+Not using a cache, for a set of 10 iterations uses **49157 gas**.
+
+```solidity
+contract SumNumbers {
+    uint[] public numbers;
+    
+    constructor(uint size) {
+        // Add some data to work with
+        for (uint i = 0; i < size; i++) {
+            numbers.push(i);
+        }
+    }
+    
+    function sumNumbers() public view returns (uint) {
+        uint sum;
+        for(uint i = 0; i < numbers.length; i++) {
+            sum += numbers[i];
+        }
+        
+        return sum;
+    }
+}
+```
+
+Using a cache, for the same set of 10 iterations uses **48168 gas**.
+
+```solidity
+contract SumNumbersWithCache {
+    uint[] public numbers;
+    
+    constructor(uint size) {
+        // Add some data to work with
+        for (uint i = 0; i < size; i++) {
+            numbers.push(i);
+        }
+    }
+    
+    function sumNumbers() public view returns (uint) {
+        uint sum;
+        uint size = numbers.length;
+        
+        for(uint i = 0; i < size; i++) {
+            sum += numbers[i];
+        }
+        
+        return sum;
+    }
+}
+```
+
+Both contracts were compiled with 200 optimization rounds.
 
 
 ---
@@ -633,7 +675,7 @@ After the cap was updated, an event is emitted.
     emit CapUpdated(cap);
 ```
 
-When the event is emitted, the storage variable is used. This forces the an expensive `SLOAD` operation.
+When the event is emitted, the storage variable is used. This forces an expensive `SLOAD` operation.
 
 **Recommendation**
 
