@@ -1,8 +1,8 @@
 {
-    "client_name": "Client name",
+    "client_name": "Opyn",
     "commit_hash": "1248e6606feb3279a94104df6c6dfcb8d46271f4",
     "date": "July 2021",
-    "date_interval": "October 15 to November 15, 2020",
+    "date_interval": "July 26 to July 30, 2021",
     "issues": [
         {
             "active_lock_reason": null,
@@ -701,9 +701,9 @@
             }
         }
     ],
-    "person_days": "5",
-    "project_name": "Project name",
-    "review_period": "2 weeks",
+    "person_days": "10",
+    "project_name": "Perpetual Vault Template",
+    "review_period": "1 week",
     "source_repository": "https://github.com/opynfinance/perp-vault-templates",
     "template": "./Readme.md.mustache"
 }

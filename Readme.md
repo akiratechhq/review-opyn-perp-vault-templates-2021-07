@@ -5,7 +5,7 @@
           </span>
           <br />
           <span id="project-value">
-               Project name
+               Perpetual Vault Template
           </span>
     </div>
      <div id="details">
@@ -15,7 +15,7 @@
                </span>
                <br />
                <span class="details-value">
-                    Client name
+                    Opyn
                </span>
                <br />
                <span class="splash-title">
@@ -57,6 +57,7 @@
      - [Consider removing storage changes in modifiers](#consider-removing-storage-changes-in-modifiers)
      - [Use the Checks-Effects-Interactions Pattern](#use-the-checks-effects-interactions-pattern)
      - [Increase the number of tests](#increase-the-number-of-tests)
+     - [Consider renaming variables and methods](#consider-renaming-variables-and-methods)
  - [Issues](#issues)
      - [Registering a deposit uses the incorrect initial value for the user](#registering-a-deposit-uses-the-incorrect-initial-value-for-the-user)
      - [A Vault owner can allocate 100% of tokens to one action](#a-vault-owner-can-allocate-100-of-tokens-to-one-action)
@@ -77,11 +78,11 @@
 
 ## Details
 
-- **Client** Client name
+- **Client** Opyn
 - **Date** July 2021
 - **Lead reviewer** Daniel Luca ([@cleanunicorn](https://twitter.com/cleanunicorn))
 - **Reviewers** Daniel Luca ([@cleanunicorn](https://twitter.com/cleanunicorn)), Andrei Simion ([@andreiashu](https://twitter.com/andreiashu))
-- **Repository**: [Project name](https://github.com/opynfinance/perp-vault-templates)
+- **Repository**: [Perpetual Vault Template](https://github.com/opynfinance/perp-vault-templates)
 - **Commit hash** `1248e6606feb3279a94104df6c6dfcb8d46271f4`
 - **Technologies**
   - Solidity
@@ -98,9 +99,9 @@
 
 ## Executive summary
 
-This report represents the results of the engagement with **Client name** to review **Project name**.
+This report represents the results of the engagement with **Opyn** to review **Perpetual Vault Template**.
 
-The review was conducted over the course of **2 weeks** from **October 15 to November 15, 2020**. A total of **5 person-days** were spent reviewing the code.
+The review was conducted over the course of **1 week** from **July 26 to July 30, 2021**. A total of **10 person-days** were spent reviewing the code.
 
 We started the review by going through the provided [documentation](https://opyn.gitbook.io/perp-vault/) and the source code.
 
@@ -116,7 +117,7 @@ On Friday, at the end of the review, we set up a report delivery meeting where w
 
 ## Scope
 
-The initial review focused on the [Project name](https://github.com/opynfinance/perp-vault-templates) repository, identified by the commit hash `1248e6606feb3279a94104df6c6dfcb8d46271f4`.
+The initial review focused on the [Perpetual Vault Template](https://github.com/opynfinance/perp-vault-templates) repository, identified by the commit hash `1248e6606feb3279a94104df6c6dfcb8d46271f4`.
 
 We focused on manually reviewing the codebase, searching for security issues such as, but not limited to, re-entrancy problems, transaction ordering, block timestamp dependency, exception handling, call stack depth limitation, integer overflow/underflow, self-destructible contracts, unsecured balance, use of origin, costly gas patterns, architectural problems, code readability.
 
@@ -307,6 +308,162 @@ In this case, this is not a security issue since `_mint` is part of the `ERC20` 
 ### Increase the number of tests
 
 A good rule of thumb is to have 100% test coverage. This does not guarantee the lack of security problems, but it means that the desired functionality behaves as intended. The negative tests also bring a lot of value because not allowing some actions to happen is part of the desired behavior.
+
+### Consider renaming variables and methods
+
+One of the difficult parts of reviewing this code, was understanding how it works. We found that the variable names and method names were not very descriptive. 
+
+#### Rename `_effectiveBalance`
+
+For example the method `_effectiveBalance` doesn't describe what value it returns.
+
+Even the netspec docs do not actually explain the concept behind the implementation.
+
+
+[code/contracts/core/OpynPerpVault.sol#L380-L383](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/d94fcb2e2173008272604705a9fc618710349462/code/contracts/core/OpynPerpVault.sol#L380-L383)
+```solidity
+  /**
+   * @notice returns asset balance of the vault excluding assets registered to be withdrawn and the assets still in pendingDeposit.
+   */
+  function _effectiveBalance() internal view returns (uint256) {
+```
+
+The docs basically describe how the value is calculated, but it does not explain what it represents.
+
+
+[code/contracts/core/OpynPerpVault.sol#L384](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/d94fcb2e2173008272604705a9fc618710349462/code/contracts/core/OpynPerpVault.sol#L384)
+```solidity
+    return IERC20(asset).balanceOf(address(this)).sub(pendingDeposit).sub(withdrawQueueAmount);
+```
+
+A better naming for this method is `_currentRoundBalance` because these assets represent the assets locked in the contract for this current round, excluding pending deposits or pending withdraws.
+
+We were able to understand the reasoning behind this naming by communicating with the development team.
+
+Once we knew the rationale behind the implementation, other parts of the codebase became easier to understand.
+
+For example the method `_snapshotShareAndAsset` needs the current round assets to create a snapshot. It would be easier to understand if this method was named `_currentRoundAssets`. 
+
+It retrieves the assets for the current round:
+
+
+[code/contracts/core/OpynPerpVault.sol#L544](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/d94fcb2e2173008272604705a9fc618710349462/code/contracts/core/OpynPerpVault.sol#L544)
+```solidity
+    uint256 vaultBalance = _effectiveBalance();
+```
+
+And then it stores this value for future accounting:
+
+
+[code/contracts/core/OpynPerpVault.sol#L550-L552](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/d94fcb2e2173008272604705a9fc618710349462/code/contracts/core/OpynPerpVault.sol#L550-L552)
+```solidity
+    // store this round's balance and shares
+    roundTotalShare[round] = totalShares;
+    roundTotalAsset[round] = vaultBalance;
+```
+
+Having the method named `_effectiveBalance` doesn't describe what it revers to, what balance it returns and why not all of the "real" balance is returned; we need to subtract the pending deposits and withdraws from the "real" balance because they are not part of the current round.
+
+To further increase the confusion, the value returned by this method is saved in variables named very differently.
+
+In `_distribute` it is named `totalBalance`.
+
+
+[code/contracts/core/OpynPerpVault.sol#L435](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/d94fcb2e2173008272604705a9fc618710349462/code/contracts/core/OpynPerpVault.sol#L435)
+```solidity
+    uint256 totalBalance = _effectiveBalance();
+```
+
+In `_payRoundFee` it is named `newTotal`.
+
+
+[code/contracts/core/OpynPerpVault.sol#L515](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/d94fcb2e2173008272604705a9fc618710349462/code/contracts/core/OpynPerpVault.sol#L515)
+```solidity
+    uint256 newTotal = _effectiveBalance();
+```
+
+And in `_snapshotShareAndAsset` it is named `vaultBalance`.
+
+
+[code/contracts/core/OpynPerpVault.sol#L544](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/d94fcb2e2173008272604705a9fc618710349462/code/contracts/core/OpynPerpVault.sol#L544)
+```solidity
+    uint256 vaultBalance = _effectiveBalance();
+```
+
+But everytime, the value returned represents the asset for the current round.
+
+#### Rename `registerWithdraw` and `registerDeposit`
+
+The methods `registerWithdraw` and `registerDeposit` can be called by users to queue a deposit in the next round. A better way of naming these methods is `registerPendingWithdraw` and `registerPendingDeposit` or `queueWithdraw` and `queueDeposit`.
+
+#### The method `_snapshotShareAndAsset` does a bit more than what it describes
+
+To end a round the method `closePositions` needs to be called.
+
+This method closes the open positions and pays the fees towards the manager before calling `_snapshotShareAndAsset`.
+
+
+[code/contracts/core/OpynPerpVault.sol#L320-L327](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/d94fcb2e2173008272604705a9fc618710349462/code/contracts/core/OpynPerpVault.sol#L320-L327)
+```solidity
+  function closePositions() public onlyLocked unlockState {
+    // calls closePositions on all the actions and transfers the assets back into the vault
+    _closeAndWithdraw();
+
+    _payRoundFee();
+
+    // records the net shares and assets in the current round and updates the pendingDeposits and withdrawQueue
+    _snapshotShareAndAsset();
+```
+
+The method `_snapshotShareAndAsset` creates a snapshot of the current round with the realized profits.
+
+
+[code/contracts/core/OpynPerpVault.sol#L543-L552](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/d94fcb2e2173008272604705a9fc618710349462/code/contracts/core/OpynPerpVault.sol#L543-L552)
+```solidity
+  function _snapshotShareAndAsset() internal {
+    uint256 vaultBalance = _effectiveBalance();
+    uint256 outStandingShares = totalSupply();
+    uint256 sharesBurned = roundTotalQueuedWithdrawShares[round];
+
+    uint256 totalShares = outStandingShares.add(sharesBurned);
+
+    // store this round's balance and shares
+    roundTotalShare[round] = totalShares;
+    roundTotalAsset[round] = vaultBalance;
+```
+
+However, it continues to do much more, it handles the withdraw queue:
+
+
+[code/contracts/core/OpynPerpVault.sol#L554-L559](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/d94fcb2e2173008272604705a9fc618710349462/code/contracts/core/OpynPerpVault.sol#L554-L559)
+```solidity
+    // === Handle withdraw queue === //
+    // withdrawQueueAmount was keeping track of total amount that should be reserved for withdraws, not including this round
+    // add this round's reserved asset into withdrawQueueAmount, which will stay in the vault for withdraw
+
+    uint256 roundReservedAsset = sharesBurned.mul(vaultBalance).div(totalShares);
+    withdrawQueueAmount = withdrawQueueAmount.add(roundReservedAsset);
+```
+
+And it also handles the deposit queue:
+
+
+[code/contracts/core/OpynPerpVault.sol#L561-L567](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/d94fcb2e2173008272604705a9fc618710349462/code/contracts/core/OpynPerpVault.sol#L561-L567)
+```solidity
+    // === Handle deposit queue === //
+    // pendingDeposit is amount of deposit accepted in this round, which was in the vault all the time.
+    // we will calculate how much shares this amount can mint, mint it at once to the vault,
+    // and reset the pendingDeposit, so that this amount can be used in the next round.
+    uint256 sharesToMint = pendingDeposit.mul(totalShares).div(vaultBalance);
+    _mint(address(this), sharesToMint);
+    pendingDeposit = 0;
+```
+
+Note that the comments above refer to a [deposit and withdraw queue](#rename-registerwithdraw-and-registerdeposit) and the name of this method does not describe these actions.
+
+This method is one of the most complex and hardest to understand because some of queue logic is finalized in this method, even if it doesn't need to. It could possibly be in another method or even in the `closePositions` method.
+
+
 
 ## Issues
 
