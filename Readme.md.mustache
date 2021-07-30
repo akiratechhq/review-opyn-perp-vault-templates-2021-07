@@ -152,6 +152,10 @@ The first contract `UnreliableContract` reverts if even numbers are provided in 
 
 A suggestion is to use a similar approach as the one described in the `CallExternal` contract. This would allow the `OpynPerpVault` to be more independent of the actions. All interactions with the actions could (but not necessarily) be considered untrustworthy, and the `OpynPerpVault` should be able to handle the failure of the actions.
 
+A simpler method, better integrated with the Solidity language is the `try/catch` approach. It allows you to have the same low level calls, but the language offers more support. We feel [the documentation](https://docs.soliditylang.org/en/v0.6.0/control-structures.html#try-catch) provides good examples and it's a good starting point.
+
+However, understanding the low level approach described above is beneficial even if the you decide to use the `try/catch` approach.
+
 ### Consider removing storage changes in modifiers
 
 There are 2 cases where modifiers that change state are used.

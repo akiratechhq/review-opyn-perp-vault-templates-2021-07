@@ -253,6 +253,10 @@ The first contract `UnreliableContract` reverts if even numbers are provided in 
 
 A suggestion is to use a similar approach as the one described in the `CallExternal` contract. This would allow the `OpynPerpVault` to be more independent of the actions. All interactions with the actions could (but not necessarily) be considered untrustworthy, and the `OpynPerpVault` should be able to handle the failure of the actions.
 
+A simpler method, better integrated with the Solidity language is the `try/catch` approach. It allows you to have the same low level calls, but the language offers more support. We feel [the documentation](https://docs.soliditylang.org/en/v0.6.0/control-structures.html#try-catch) provides good examples and it's a good starting point.
+
+However, understanding the low level approach described above is beneficial even if the you decide to use the `try/catch` approach.
+
 ### Consider removing storage changes in modifiers
 
 There are 2 cases where modifiers that change state are used.
@@ -896,9 +900,12 @@ The owner can call `setCap` to set a new limit for the accepted funds.
 After the cap was updated, an event is emitted.
 
 
-[code/contracts/core/OpynPerpVault.sol#L200](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/518e4f6d174cae6ee75e316ad56789aaeb695069/code/contracts/core/OpynPerpVault.sol#L200)
+[code/contracts/core/OpynPerpVault.sol#L198-L201](https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/518e4f6d174cae6ee75e316ad56789aaeb695069/code/contracts/core/OpynPerpVault.sol#L198-L201)
 ```solidity
+  function setCap(uint256 _cap) external onlyOwner {
+    cap = _cap;
     emit CapUpdated(cap);
+  }
 ```
 
 When the event is emitted, the storage variable is used. This forces an expensive `SLOAD` operation.

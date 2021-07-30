@@ -575,7 +575,7 @@
             "assignee": null,
             "assignees": [],
             "author_association": "CONTRIBUTOR",
-            "body": "**Description**\r\n\r\nThe owner can call `setCap` to set a new limit for the accepted funds.\r\n\r\nAfter the cap was updated, an event is emitted.\r\n\r\nhttps://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/518e4f6d174cae6ee75e316ad56789aaeb695069/code/contracts/core/OpynPerpVault.sol#L200\r\n\r\nWhen the event is emitted, the storage variable is used. This forces an expensive `SLOAD` operation.\r\n\r\n**Recommendation**\r\n\r\nUse the argument received in the method when emitting the event instead of the storage variable.\r\n",
+            "body": "**Description**\r\n\r\nThe owner can call `setCap` to set a new limit for the accepted funds.\r\n\r\nAfter the cap was updated, an event is emitted.\r\n\r\nhttps://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/518e4f6d174cae6ee75e316ad56789aaeb695069/code/contracts/core/OpynPerpVault.sol#L198-L201\r\n\r\nWhen the event is emitted, the storage variable is used. This forces an expensive `SLOAD` operation.\r\n\r\n**Recommendation**\r\n\r\nUse the argument received in the method when emitting the event instead of the storage variable.\r\n",
             "closed_at": null,
             "comments": 0,
             "comments_url": "https://api.github.com/repos/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/issues/2/comments",
@@ -612,7 +612,7 @@
             "repository_url": "https://api.github.com/repos/monoceros-alpha/review-opyn-perp-vault-templates-2021-07",
             "state": "open",
             "title": "Improve gas costs by reducing the use of state variables when possible",
-            "updated_at": "2021-07-30T05:44:05Z",
+            "updated_at": "2021-07-30T14:49:44Z",
             "url": "https://api.github.com/repos/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/issues/2",
             "user": {
                 "avatar_url": "https://avatars.githubusercontent.com/u/547012?v=4",
