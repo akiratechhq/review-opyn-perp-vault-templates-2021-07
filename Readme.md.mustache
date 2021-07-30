@@ -239,6 +239,28 @@ Sūrya is a utility tool for smart contract systems. It provides a number of vis
 
 ![OpynPerpVault Inheritance](./static/graphs/OpynPerpVault_inheritance.png)
 
+
+***ShortOToken***
+
+##### Call graph
+
+![ShortOToken Graph](./static/graphs/ShortOToken_graph.png)
+
+##### Inheritance
+
+![ShortOToken Inheritance](./static/graphs/ShortOToken_inheritance.png)
+
+***ShortPutWithETH***
+
+##### Call graph
+
+![ShortPutWithETH Graph](./static/graphs/ShortPutWithETH_graph.png)
+
+##### Inheritance
+
+![ShortPutWithETH Inheritance](./static/graphs/ShortPutWithETH_inheritance.png)
+
+
 <!-- ***Contract***
 
 ```text
@@ -305,10 +327,51 @@ $ npx surya describe ./contracts/core/OpynPerpVault.sol
     - [Int] _payRoundFee #
     - [Int] _snapshotShareAndAsset #
 
+ ($) = payable function
+ # = non-constant function
+```
+
+```text
+$ npx surya describe ./contracts/example-actions/ShortOToken.sol
+ +  ShortOToken (IAction, OwnableUpgradeable, AuctionUtils, AirswapUtils, RollOverBase, GammaUtils)
+    - [Pub] <Constructor> #
+    - [Ext] currentValue
+    - [Ext] closePosition #
+       - modifiers: onlyVault
+    - [Ext] rolloverPosition #
+       - modifiers: onlyVault
+    - [Ext] mintAndStartAuction #
+       - modifiers: onlyOwner,onlyActivated
+    - [Ext] mintAndBidInAuction #
+       - modifiers: onlyOwner,onlyActivated
+    - [Ext] mintAndTradeAirSwapOTC #
+       - modifiers: onlyOwner,onlyActivated
+    - [Pub] canClosePosition
+    - [Int] _canSettleVault
+    - [Int] _customOTokenCheck
+    - [Int] _isValidStrike
+    - [Int] _isValidExpiry
 
  ($) = payable function
  # = non-constant function
+```
 
+```text
+$ npx surya describe ./contracts/example-actions/ShortPutWithETH.sol
+ +  ShortPutWithETH (IAction, OwnableUpgradeable, CompoundUtils, AirswapUtils, RollOverBase, GammaUtils)
+    - [Pub] <Constructor> #
+    - [Ext] currentValue
+    - [Ext] rolloverPosition #
+       - modifiers: onlyVault
+    - [Pub] canClosePosition
+    - [Ext] closePosition #
+       - modifiers: onlyVault
+    - [Ext] borrowMintAndTradeOTC #
+       - modifiers: onlyOwner,onlyActivated
+    - [Int] _canSettleVault
+
+ ($) = payable function
+ # = non-constant function
 ```
 
 ### Coverage
