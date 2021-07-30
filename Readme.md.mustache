@@ -180,6 +180,86 @@ In this case, this is not a security issue since `_mint` is part of the `ERC20` 
 
 A good rule of thumb is to have 100% test coverage. This does not guarantee the lack of security problems, but it means that the desired functionality behaves as intended. The negative tests also bring a lot of value because not allowing some actions to happen is part of the desired behavior.
 
+### Consider renaming variables and methods
+
+One of the difficult parts of reviewing this code, was understanding how it works. We found that the variable names and method names were not very descriptive. 
+
+#### Rename `_effectiveBalance`
+
+For example the method `_effectiveBalance` doesn't describe what value it returns.
+
+Even the netspec docs do not actually explain the concept behind the implementation.
+
+https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/d94fcb2e2173008272604705a9fc618710349462/code/contracts/core/OpynPerpVault.sol#L380-L383
+
+The docs basically describe how the value is calculated, but it does not explain what it represents.
+
+https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/d94fcb2e2173008272604705a9fc618710349462/code/contracts/core/OpynPerpVault.sol#L384
+
+A better naming for this method is `_currentRoundBalance` because these assets represent the assets locked in the contract for this current round, excluding pending deposits or pending withdraws.
+
+We were able to understand the reasoning behind this naming by communicating with the development team.
+
+Once we knew the rationale behind the implementation, other parts of the codebase became easier to understand.
+
+For example the method `_snapshotShareAndAsset` needs the current round assets to create a snapshot. It would be easier to understand if this method was named `_currentRoundAssets`. 
+
+It retrieves the assets for the current round:
+
+https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/d94fcb2e2173008272604705a9fc618710349462/code/contracts/core/OpynPerpVault.sol#L544
+
+And then it stores this value for future accounting:
+
+https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/d94fcb2e2173008272604705a9fc618710349462/code/contracts/core/OpynPerpVault.sol#L550-L552
+
+Having the method named `_effectiveBalance` doesn't describe what it revers to, what balance it returns and why not all of the "real" balance is returned; we need to subtract the pending deposits and withdraws from the "real" balance because they are not part of the current round.
+
+To further increase the confusion, the value returned by this method is saved in variables named very differently.
+
+In `_distribute` it is named `totalBalance`.
+
+https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/d94fcb2e2173008272604705a9fc618710349462/code/contracts/core/OpynPerpVault.sol#L435
+
+In `_payRoundFee` it is named `newTotal`.
+
+https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/d94fcb2e2173008272604705a9fc618710349462/code/contracts/core/OpynPerpVault.sol#L515
+
+And in `_snapshotShareAndAsset` it is named `vaultBalance`.
+
+https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/d94fcb2e2173008272604705a9fc618710349462/code/contracts/core/OpynPerpVault.sol#L544
+
+But everytime, the value returned represents the asset for the current round.
+
+#### Rename `registerWithdraw` and `registerDeposit`
+
+The methods `registerWithdraw` and `registerDeposit` can be called by users to queue a deposit in the next round. A better way of naming these methods is `registerPendingWithdraw` and `registerPendingDeposit` or `queueWithdraw` and `queueDeposit`.
+
+#### The method `_snapshotShareAndAsset` does a bit more than what it describes
+
+To end a round the method `closePositions` needs to be called.
+
+This method closes the open positions and pays the fees towards the manager before calling `_snapshotShareAndAsset`.
+
+https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/d94fcb2e2173008272604705a9fc618710349462/code/contracts/core/OpynPerpVault.sol#L320-L327
+
+The method `_snapshotShareAndAsset` creates a snapshot of the current round with the realized profits.
+
+https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/d94fcb2e2173008272604705a9fc618710349462/code/contracts/core/OpynPerpVault.sol#L543-L552
+
+However, it continues to do much more, it handles the withdraw queue:
+
+https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/d94fcb2e2173008272604705a9fc618710349462/code/contracts/core/OpynPerpVault.sol#L554-L559
+
+And it also handles the deposit queue:
+
+https://github.com/monoceros-alpha/review-opyn-perp-vault-templates-2021-07/blob/d94fcb2e2173008272604705a9fc618710349462/code/contracts/core/OpynPerpVault.sol#L561-L567
+
+Note that the comments above refer to a [deposit and withdraw queue](#rename-registerwithdraw-and-registerdeposit) and the name of this method does not describe these actions.
+
+This method is one of the most complex and hardest to understand because some of queue logic is finalized in this method, even if it doesn't need to. It could possibly be in another method or even in the `closePositions` method.
+
+
+
 ## Issues
 
 {{#issues}}
