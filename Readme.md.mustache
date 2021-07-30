@@ -28,6 +28,17 @@ This report represents the results of the engagement with **{{client_name}}** to
 
 The review was conducted over the course of **{{review_period}}** from **{{date_interval}}**. A total of **{{person_days}} person-days** were spent reviewing the code.
 
+We started the review by going through the provided [documentation](https://opyn.gitbook.io/perp-vault/) and the source code.
+
+On Monday we set up a meeting with the client to discuss the project and the current state of the code. We've gone through a few flows, to make sure we understand the overall architecture of the system.
+
+The main purpose of the project is to be an example for developers that want to leverage the Opyn protocol. This is why we consider the project to be simple to understand and provide sufficient functionality to be used in a real-world application.
+
+On Wednesday we set up a new meeting with the client to discuss a few findings and to give access to the issues we've found. We expressed a few concerns regarding to the complexity and reduced readability of the whole system.
+
+We continued to review the code, while remaining in constant communication with the client.
+
+On Friday, at the end of the review, we set up a report delivery meeting where we presented the final report.
 
 ## Scope
 
@@ -46,6 +57,10 @@ We focused on manually reviewing the codebase, searching for security issues suc
 - code/contracts/utils/ZeroXUtils.sol
 - code/contracts/utils/RollOverBase.sol
 - code/contracts/utils/AirswapUtils.sol
+
+Because of the complexity of the codebase and decreased readability, we were unable to perform a complete review. We mostly focused on the core component of the system `OpynPerpVault`, but we also took a look at the other contracts. The actions were mostly considered as "black boxes" and we did not perform a complete review of them. 
+
+Even though the `utils` folder was included in the scope, there was no time to completely review it.
 
 ## Recommendations
 
