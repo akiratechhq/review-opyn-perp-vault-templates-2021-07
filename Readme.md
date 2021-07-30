@@ -84,7 +84,7 @@
 - **Commit hash** `1248e6606feb3279a94104df6c6dfcb8d46271f4`
 - **Technologies**
   - Solidity
-  - Node.JS
+  - Typescript
 
 ## Issues Summary
 
